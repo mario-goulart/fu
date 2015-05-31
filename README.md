@@ -137,13 +137,18 @@ Here's another example, a command to open files based on files' extension:
       Find & open files."
       (let ((opener
              (lambda (file)
-               (let* ((ext (string->symbol (pathname-extension file)))
-                      (program
-                       (case ext
-                         ((html htm) "firefox")
-                         ((pdf) "mupdf")
-                         (else (die! "Don't know how to open ~a files" ext)))))
-                 (system (sprintf "~a ~a" program (qs file)))))))
+               (let ((ext (pathname-extension file)))
+                 (if ext
+                     (let* ((ext (string->symbol (string-downcase ext)))
+                            (program
+                             (case ext
+                               ((html htm) "firefox")
+                               ((avi mpg mpeg mp4 mov) "mplayer")
+                               ((pdf) "mupdf")
+                               (else
+                                (die! "Don't know how to open ~a files." ext)))))
+                       (system (sprintf "~a ~a" program (qs file))))
+                     (die! "Don't know how to open ~a." file))))))
         (fu-find/operate opener)))
 
 If you don't like fu's default commands, you can remove them and use
