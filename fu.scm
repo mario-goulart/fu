@@ -116,6 +116,7 @@
 (define (fu-find-files pattern
                        #!key dir
                              depth
+                             except
                              match-full-path?
                              display-full-path?
                              (constraint identity))
@@ -127,6 +128,9 @@
                                                  (if match-full-path?
                                                      f
                                                      (pathname-strip-directory f)))
+                                  (if except
+                                      (not (irregex-search except f))
+                                      #t)
                                   (constraint f)))
                      limit: depth)))
     (reverse
@@ -164,10 +168,12 @@
             (parse-command-line args
                                 `((-s)
                                   (-f)
+                                  (-e . except)
                                   (-d . ,(require-positive-integer '-d)))))
            (get-opt (lambda (opt)
                       (alist-ref opt parsed-args)))
            (str-pattern (check-pattern (get-opt '--)))
+           (except (get-opt '-e))
            (full-path? (substring-index "/" str-pattern))
            (pattern (prepare-pattern str-pattern (get-opt '-s)))
            (files (fu-find-files pattern
@@ -175,6 +181,7 @@
                                  depth: (get-opt '-d)
                                  display-full-path?: (get-opt '-f)
                                  match-full-path?: full-path?
+                                 except: (and except (string->sre except))
                                  constraint: (if non-dirs-only?
                                                  (lambda (f)
                                                    (not (directory? f)))
@@ -214,9 +221,10 @@ f [-s] [-f] [-d <depth>] <pattern>
   Find files that sloppily match <pattern> (a regular expression).
   Sloppily means <pattern> will be surrounded by ".*" and will be case
   insensitive.
-    -s:         strict mode -- disable sloppy mode.
-    -f:         print full paths
-    -d <depth>: limit search to <depth>
+    -s:          strict mode -- disable sloppy mode.
+    -e <except>: remove files matching <except> (not affected by -s)
+    -f:          print full paths
+    -d <depth>:  limit search to <depth>
 EOF
   (fu-find/operate print prompt?: #f non-dirs-only?: #f))
 

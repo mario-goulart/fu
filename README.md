@@ -12,9 +12,10 @@ It's shipped with commands to find, view and edit files:
       Find files that sloppily match <pattern> (a regular expression).
       Sloppily means <pattern> will be surrounded by ".*" and will be case
       insensitive.
-        -s:         strict mode -- disable sloppy mode.
-        -f:         print full paths
-        -d <depth>: limit search to <depth>
+        -s:          strict mode -- disable sloppy mode.
+        -e <except>: remove files matching <except> (not affected by -s)
+        -f:          print full paths
+        -d <depth>:  limit search to <depth>
     
     v <f options> <pattern>
       Find files & view.
@@ -117,9 +118,10 @@ Once defined, handlers get integrated to fu:
       Find files that sloppily match <pattern> (a regular expression).
       Sloppily means <pattern> will be surrounded by ".*" and will be case
       insensitive.
-        -s:         strict mode -- disable sloppy mode.
-        -f:         print full paths
-        -d <depth>: limit search to <depth>
+        -s:          strict mode -- disable sloppy mode.
+        -e <except>: remove files matching <except> (not affected by -s)
+        -f:          print full paths
+        -d <depth>:  limit search to <depth>
     
     v <f options> <pattern>
       Find files & view.
@@ -168,9 +170,10 @@ your own.  The `remove-handler!` procedure removes handlers by command
       Find files that sloppily match <pattern> (a regular expression).
       Sloppily means <pattern> will be surrounded by ".*" and will be case
       insensitive.
-        -s:         strict mode -- disable sloppy mode.
-        -f:         print full paths
-        -d <depth>: limit search to <depth>
+        -s:          strict mode -- disable sloppy mode.
+        -e <except>: remove files matching <except> (not affected by -s)
+        -f:          print full paths
+        -d <depth>:  limit search to <depth>
     
     v <f options> <pattern>
       Find files & view.
