@@ -1,0 +1,10 @@
+;; -*- scheme -*-
+
+(include "fu-version.scm")
+
+(define static? (get-environment-variable "FU_STATIC"))
+
+(compile -ASM fu.scm)
+(compile ,@(if static? '(-static) '()) -d2 -O3 -o fu fu.scm)
+
+(install-program 'fu '("fu") `((version ,fu-version)))

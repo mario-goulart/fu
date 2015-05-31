@@ -1,0 +1,5 @@
+;; -*- scheme -*-
+((synopsis "A tool to find and operate on files")
+ (author "Mario Domenech Goulart")
+ (category tools)
+ (license "BSD"))
