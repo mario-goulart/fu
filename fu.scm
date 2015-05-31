@@ -48,7 +48,7 @@
                          args))
   (exit 1))
 
-(define (highlight-match path pattern #!key full-path?)
+(define (highlight-match path pattern full-path?)
   (let ((match (irregex-match pattern (if full-path?
                                           path
                                           (pathname-strip-directory path))))
@@ -63,9 +63,9 @@
                                 (irregex-match-substring m))))
         path)))
 
-(define (highlight-matches pattern)
+(define (highlight-matches pattern full-path?)
   (lambda (option)
-    (highlight-match option pattern)))
+    (highlight-match option pattern full-path?)))
 
 
 (define (prompt options option-formatter)
@@ -113,40 +113,50 @@
   (and (pair? sre)
        (eq? 'w/nocase (car sre))))
 
-(define (fu-find-files pattern #!key depth full-path (constraint identity) dir)
+(define (fu-find-files pattern
+                       #!key dir
+                             depth
+                             match-full-path?
+                             display-full-path?
+                             (constraint identity))
   (let ((cwd (current-directory))
         (files
          (find-files (or dir ".")
                      test: (lambda (f)
                              (and (irregex-match pattern
-                                                 (pathname-strip-directory f))
+                                                 (if match-full-path?
+                                                     f
+                                                     (pathname-strip-directory f)))
                                   (constraint f)))
                      limit: depth)))
     (reverse
      (map (lambda (file)
             (normalize-pathname
-             (if full-path
+             (if display-full-path?
                  (make-pathname cwd file)
                  file)))
           files))))
 
-(define (maybe-prompt-files files pattern op)
+(define (maybe-prompt-files files pattern op full-path?)
   (cond ((null? files)
          (exit 1))
         ((null? (cdr files))
          (op (car files)))
         (else
-         (let ((choice (prompt files (highlight-matches pattern))))
+         (let ((choice (prompt files (highlight-matches pattern full-path?))))
            (op (list-ref files choice))))))
 
-(define (prepare-pattern pattern strict?)
+(define (check-pattern pattern)
   (when (null? pattern)
     (die! "Missing pattern."))
   (unless (null? (cdr pattern))
     (die! "Multiple patterns are not supported."))
+  (car pattern))
+
+(define (prepare-pattern pattern strict?)
   (if strict?
-      (string->sre (car pattern))
-      (sloppy-pattern (string->sre (car pattern)))))
+      (string->sre pattern)
+      (sloppy-pattern (string->sre pattern))))
 
 (define (fu-find/operate op #!key (prompt? #t) (non-dirs-only? #t) (dir "."))
   (lambda args
@@ -157,19 +167,22 @@
                                   (-d . ,(require-positive-integer '-d)))))
            (get-opt (lambda (opt)
                       (alist-ref opt parsed-args)))
-           (pattern (prepare-pattern (get-opt '--) (get-opt '-s)))
+           (str-pattern (check-pattern (get-opt '--)))
+           (full-path? (substring-index "/" str-pattern))
+           (pattern (prepare-pattern str-pattern (get-opt '-s)))
            (files (fu-find-files pattern
                                  dir: dir
                                  depth: (get-opt '-d)
-                                 full-path: (get-opt '-f)
+                                 display-full-path?: (get-opt '-f)
+                                 match-full-path?: full-path?
                                  constraint: (if non-dirs-only?
                                                  (lambda (f)
                                                    (not (directory? f)))
                                                  identity))))
       (if prompt?
-          (maybe-prompt-files files pattern op)
+          (maybe-prompt-files files pattern op full-path?)
           (for-each (lambda (file)
-                      (op (qs (highlight-match file pattern))))
+                      (op (qs (highlight-match file pattern full-path?))))
                     files)))))
 
 ;;;
