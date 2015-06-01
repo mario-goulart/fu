@@ -121,6 +121,8 @@
                              display-full-path?
                              (constraint identity))
   (let ((cwd (current-directory))
+        (pattern (irregex pattern))
+        (except (map irregex except))
         (files
          (find-files (or dir ".")
                      test: (lambda (f)
