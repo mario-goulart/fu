@@ -129,7 +129,9 @@
                                                      f
                                                      (pathname-strip-directory f)))
                                   (if except
-                                      (not (irregex-search except f))
+                                      (not (any (lambda (e)
+                                                  (irregex-search e f))
+                                                except))
                                       #t)
                                   (constraint f)))
                      limit: depth)))
@@ -170,10 +172,15 @@
                                   (-f)
                                   (-e . except)
                                   (-d . ,(require-positive-integer '-d)))))
-           (get-opt (lambda (opt)
-                      (alist-ref opt parsed-args)))
+           (get-opt (lambda (option #!optional multiple?)
+                      (if multiple?
+                          (filter-map (lambda (opt)
+                                        (and (eq? (car opt) option)
+                                             (cdr opt)))
+                                      parsed-args)
+                          (alist-ref option parsed-args))))
            (str-pattern (check-pattern (get-opt '--)))
-           (except (get-opt '-e))
+           (except (get-opt '-e 'multiple))
            (full-path? (substring-index "/" str-pattern))
            (pattern (prepare-pattern str-pattern (get-opt '-s)))
            (files (fu-find-files pattern
@@ -181,7 +188,7 @@
                                  depth: (get-opt '-d)
                                  display-full-path?: (get-opt '-f)
                                  match-full-path?: full-path?
-                                 except: (and except (string->sre except))
+                                 except: (and except (map string->sre except))
                                  constraint: (if non-dirs-only?
                                                  (lambda (f)
                                                    (not (directory? f)))
