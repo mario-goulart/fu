@@ -9,7 +9,7 @@
 
 (define-record handler cmd help proc)
 
-(define (define-handler cmd help proc)
+(define (define-command cmd help proc)
   (handlers
    (cons (cons cmd (make-handler cmd help proc))
          (handlers))))
@@ -39,7 +39,7 @@
 
 ;;; Procedures
 
-(define (remove-handler! cmd)
+(define (remove-command! cmd)
   (handlers (alist-delete! cmd (handlers))))
 
 (define (die! fmt . args)
@@ -224,7 +224,7 @@
 ;;; Handlers
 ;;;
 
-(define-handler 'f
+(define-command 'f
   #<<EOF
 f [-s] [-f] [-d <depth>] <pattern>
   Find files that sloppily match <pattern> (a regular expression).
@@ -237,14 +237,14 @@ f [-s] [-f] [-d <depth>] <pattern>
 EOF
   (fu-find/operate print prompt?: #f non-dirs-only?: #f))
 
-(define-handler 'v
+(define-command 'v
   #<<EOF
 v <f options> <pattern>
   Find files & view.
 EOF
   (fu-find/operate (fu-viewer)))
 
-(define-handler 'e
+(define-command 'e
   #<<EOF
 e <f options> <pattern>
   Find files & edit.

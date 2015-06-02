@@ -79,13 +79,12 @@ Default value:
 
 ### Extending fu
 
-fu can be extended through command handler definitions in
-configuration files.  The `define-handler` procedure defines a
-handler.
+fu can be extended through command definitions in configuration files.
+The `define-command` procedure defines a command.
 
 The syntax is:
 
-    (define-handler <command> <help> <handler>)
+    (define-command <command> <help> <handler>)
 
 `<command>` is symbol.  `<help>` is a string and `<handler>` is a
 procedure that must handle an arbitrary number of parameters (command
@@ -93,15 +92,15 @@ line options).
 
 Here's an example:
 
-    (define-handler 'm
+    (define-command 'm
       "m <f options> <pattern>
       Find & play music."
       (let ((player (lambda (file)
                       (system (sprintf "mplayer ~a" (qs file))))))
         (fu-find/operate player dir: "/srv/music")))
 
-The code above defines a handler for the `m` command, which looks for
-music files matching `<pattern>` in `/srv/music`.
+The code above defines a command `m`, which looks for music files
+matching `<pattern>` in `/srv/music`.
 
 The `fu-find/operate` procedure is a helper that will handle the same
 options as for the `f` command, and allows some customizations, like
@@ -109,7 +108,7 @@ the directory where to find files (`dir` -- default is the current
 directory) and the one-argument procedure that will be applied to the
 selected file.
 
-Once defined, handlers get integrated to fu:
+Once defined, commands get integrated to fu:
 
     $ fu -h
     Usage: fu <command> <options>
@@ -134,7 +133,7 @@ Once defined, handlers get integrated to fu:
 
 Here's another example, a command to open files based on files' extension:
 
-    (define-handler 'o
+    (define-command 'o
       "o <f options> <pattern>
       Find & open files."
       (let ((opener
@@ -154,13 +153,11 @@ Here's another example, a command to open files based on files' extension:
         (fu-find/operate opener)))
 
 If you don't like fu's default commands, you can remove them and use
-your own.  The `remove-handler!` procedure removes handlers by command
-(symbol):
+your own.  The `remove-command!` procedure removes commands (symbols):
 
     $ cat ~/.fu.conf
-    ;; -*- scheme -*-    
-    
-    (remove-handler! 'e)
+    ;; -*- scheme -*-
+    (remove-command! 'e)
 
 
     $ fu -h
