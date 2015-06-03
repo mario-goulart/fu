@@ -1,11 +1,13 @@
 (import chicken scheme)
-(use data-structures extras irregex files posix srfi-1 srfi-13 utils)
+(use data-structures extras irregex files srfi-1 srfi-13 utils)
+(use (except posix find-files))
 
 ;; for command-line
 (define command-line command-line-arguments)
 
 (include "fu-version.scm")
 (include "command-line.scm")
+(include "find-files.scm")
 
 (define-record handler cmd help proc)
 
