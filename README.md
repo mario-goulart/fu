@@ -77,6 +77,26 @@ Default value:
             (string-append "\x1b[31;1m" match "\x1b[0m")
           match)))
 
+### constraints
+
+A one-argument procedure (predicate) that will be given a file path,
+and it should return `#f` or a truthy value.  `#f` specifies the file
+path should be excluded from results, and a truthy value specifies the
+file path should be included in results.
+
+The default value for this parameter is `#f`, which means "no
+constraint".
+
+For example, if you want to automatically exclude `.git` directories
+from results, you can set `constraints` like:
+
+    (constraints
+     (lambda (path)
+       (not (cond ((substring-index "./.git/" path)
+                   => (lambda (pos)
+                        (zero? pos)))
+                  (else #f)))))
+
 
 ### Extending fu
 
