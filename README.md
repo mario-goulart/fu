@@ -16,6 +16,7 @@ It's shipped with commands to find, view and edit files:
         -e <except>: remove files matching <except> (not affected by -s)
         -f:          print full paths
         -d <depth>:  limit search to <depth>
+        -.        :  list files whose name start with "."
     
     v <f options> <pattern>
       Find files & view.
@@ -121,7 +122,8 @@ Once defined, commands get integrated to fu:
         -e <except>: remove files matching <except> (not affected by -s)
         -f:          print full paths
         -d <depth>:  limit search to <depth>
-    
+        -.        :  list files whose name start with "."
+
     v <f options> <pattern>
       Find files & view.
     
@@ -171,7 +173,8 @@ your own.  The `remove-command!` procedure removes commands (symbols):
         -e <except>: remove files matching <except> (not affected by -s)
         -f:          print full paths
         -d <depth>:  limit search to <depth>
-    
+        -.        :  list files whose name start with "."
+
     v <f options> <pattern>
       Find files & view.
 

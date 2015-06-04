@@ -118,6 +118,7 @@
                              except
                              match-full-path?
                              display-full-path?
+                             dotfiles?
                              (constraint identity))
   (let ((cwd (current-directory))
         (pattern (irregex pattern))
@@ -135,6 +136,7 @@
                                                 except))
                                       #t)
                                   (constraint f)))
+                     dotfiles: dotfiles?
                      limit: depth)))
     (reverse
      (map (lambda (file)
@@ -171,6 +173,7 @@
             (parse-command-line args
                                 `((-s)
                                   (-f)
+                                  (-.)
                                   (-e . except)
                                   (-d . ,(require-positive-integer '-d)))))
            (get-opt (lambda (option #!optional multiple?)
@@ -190,6 +193,7 @@
                                  display-full-path?: (get-opt '-f)
                                  match-full-path?: full-path?
                                  except: (and except (map string->sre except))
+                                 dotfiles?: (get-opt '-.')
                                  constraint: (if non-dirs-only?
                                                  (lambda (f)
                                                    (not (directory? f)))
@@ -233,6 +237,7 @@ f [-s] [-f] [-d <depth>] <pattern>
     -e <except>: remove files matching <except> (not affected by -s)
     -f:          print full paths
     -d <depth>:  limit search to <depth>
+    -.        :  list files whose name start with "."
 EOF
   (fu-find/operate print prompt?: #f non-dirs-only?: #f))
 
