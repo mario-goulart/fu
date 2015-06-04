@@ -51,19 +51,14 @@
   (exit 1))
 
 (define (highlight-match path pattern full-path?)
-  (let ((match (irregex-match pattern (if full-path?
-                                          path
-                                          (pathname-strip-directory path))))
-        (pattern (if (sloppy-pattern? pattern)
+  (let ((pattern (if (sloppy-pattern? pattern)
                      (sloppy->strict-ci-pattern pattern)
                      pattern)))
-    (if match
-        (irregex-replace/all pattern
-                             path
-                             (lambda (m)
-                               ((match-highlighter)
-                                (irregex-match-substring m))))
-        path)))
+    (irregex-replace/all pattern
+                         path
+                         (lambda (m)
+                           ((match-highlighter)
+                            (irregex-match-substring m))))))
 
 (define (highlight-matches pattern full-path?)
   (lambda (option)
