@@ -51,18 +51,20 @@
   (exit 1))
 
 (define (highlight-match path pattern full-path?)
-  (let ((pattern (if (sloppy-pattern? pattern)
-                     (sloppy->strict-ci-pattern pattern)
-                     pattern)))
-    (irregex-replace/all pattern
-                         path
-                         (lambda (m)
-                           ((match-highlighter)
-                            (irregex-match-substring m))))))
+  (irregex-replace/all pattern
+                       path
+                       (lambda (m)
+                         ((match-highlighter)
+                          (irregex-match-substring m)))))
 
 (define (highlight-matches pattern full-path?)
-  (lambda (option)
-    (highlight-match option pattern full-path?)))
+  (let ((compiled-pattern
+         (irregex
+          (if (sloppy-pattern? pattern)
+              (sloppy->strict-ci-pattern pattern)
+              pattern))))
+    (lambda (option)
+      (highlight-match option compiled-pattern full-path?))))
 
 
 (define (prompt options option-formatter)
@@ -195,7 +197,7 @@
       (if prompt?
           (maybe-prompt-files files pattern op full-path?)
           (for-each (lambda (file)
-                      (op (qs (highlight-match file pattern full-path?))))
+                      (op (qs ((highlight-matches pattern full-path?) file))))
                     files)))))
 
 ;;;
