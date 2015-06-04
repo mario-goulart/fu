@@ -73,7 +73,7 @@
       (highlight-match option compiled-pattern full-path?))))
 
 
-(define (prompt options option-formatter)
+(define (prompt options option-formatter #!key multiple-choices?)
 
   (define (inner-prompt)
     (let loop ((i 0)
@@ -90,9 +90,17 @@
       (let ((choice (inner-prompt)))
         (if (equal? choice "")
             (exit 0)
-            (let ((nchoice (string->number choice)))
-              (if (and nchoice (fx< nchoice len-options))
-                  nchoice
+            (let ((choices (map string->number (string-split choice " ,"))))
+              (if (and (every identity choices)
+                       (every (lambda (choice)
+                                (fx< choice len-options)) choices))
+                  (if multiple-choices?
+                      choices
+                      (if (null? (cdr choices))
+                          (car choices)
+                          (begin
+                            (printf "Multiple selections are not allowed.\n")
+                            (loop))))
                   (begin
                     (printf "~a: invalid option.\n" choice)
                     (loop)))))))))
@@ -155,14 +163,20 @@
                  file)))
           files))))
 
-(define (maybe-prompt-files files pattern op full-path?)
+(define (maybe-prompt-files files pattern op full-path? multiple-choices?)
   (cond ((null? files)
          (exit 1))
         ((null? (cdr files))
          (op (car files)))
         (else
-         (let ((choice (prompt files (highlight-matches pattern full-path?))))
-           (op (list-ref files choice))))))
+         (let ((choice (prompt files
+                               (highlight-matches pattern full-path?)
+                               multiple-choices?: multiple-choices?)))
+           (if multiple-choices?
+               (for-each (lambda (choice)
+                           (op (list-ref files choice)))
+                         choice)
+               (op (list-ref files choice)))))))
 
 (define (check-pattern pattern)
   (when (null? pattern)
@@ -176,7 +190,7 @@
       (string->sre pattern)
       (sloppy-pattern (string->sre pattern))))
 
-(define (fu-find/operate op #!key (prompt? #t) (non-dirs-only? #t) (dir "."))
+(define (fu-find/operate op #!key (prompt? #t) (non-dirs-only? #t) (dir ".") multiple-choices?)
   (lambda args
     (let* ((parsed-args
             (parse-command-line args
@@ -208,7 +222,7 @@
                                                    (not (directory? f)))
                                                  identity))))
       (if prompt?
-          (maybe-prompt-files files pattern op full-path?)
+          (maybe-prompt-files files pattern op full-path? multiple-choices?)
           (for-each (lambda (file)
                       (op (qs ((highlight-matches pattern full-path?) file))))
                     files)))))
