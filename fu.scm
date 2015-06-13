@@ -29,11 +29,11 @@
            (string-append "\x1b[31;1m" match "\x1b[0m")
            match)))))
 
-;; If not #f, must be a one-argument procedure (predicate) that will
-;; be given a file path, and it should return #f or a truthy value.
-;; #f specifies the file path should be excluded from results, and a
-;; truthy value specifies the file path should be included in results.
-(define constraints (make-parameter #f))
+;; A one-argument procedure (predicate) that will be given a file
+;; path, and it should return #f or a truthy value.  #f specifies the
+;; file path should be excluded from results, and a truthy value
+;; specifies the file path should be included in results.
+(define constraints (make-parameter identity))
 
 (define fu-editor
   (make-parameter
@@ -140,9 +140,7 @@
         (files
          (find-files (or dir ".")
                      test: (lambda (f)
-                             (and (if (constraints)
-                                      ((constraints) f)
-                                      #t)
+                             (and ((constraints) f)
                                   (irregex-match pattern
                                                  (if match-full-path?
                                                      f

@@ -87,15 +87,17 @@ file path should be included in results.
 The default value for this parameter is `#f`, which means "no
 constraint".
 
-For example, if you want to automatically exclude `.git` directories
-from results, you can set `constraints` like:
+For example, if you want to automatically exclude files owned by root
+(that's a very silly example):
 
     (constraints
-     (lambda (path)
-       (not (cond ((substring-index "./.git/" path)
-                   => (lambda (pos)
-                        (zero? pos)))
-                  (else #f)))))
+     (conjoin (constraints)
+              (lambda (path)
+                (not (zero? (file-owner path))))))
+
+The use of `(conjoin (constraints) ...)` is recommended not to clobber
+other `constraints` settings made by goodies that you may happen to
+use.
 
 
 ### Extending fu
