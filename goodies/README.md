@@ -19,6 +19,13 @@ commands:
       will run 'git grep <git grep options> <pattern>. The action to be applied
       to the selection is 'edit'.
 
+### ignore-dot-git.scm
+
+This extension configures the `constraints` parameters to make fu
+ignore `.git` directories when searching for files with the `-.`
+option.
+
+
 ## Usage example
 
     $ cat ~/.fu.conf
