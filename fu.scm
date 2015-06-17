@@ -222,9 +222,10 @@
                                                  identity))))
       (if (and prompt? terminal?)
           (maybe-prompt-files files pattern op full-path? multiple-choices?)
-          (for-each (lambda (file)
-                      (op (qs ((highlight-matches pattern full-path?) file))))
-                    files)))))
+          (let ((op (if terminal? op print)))
+            (for-each (lambda (file)
+                        (op (qs ((highlight-matches pattern full-path?) file))))
+                      files))))))
 
 ;;;
 ;;; Config
