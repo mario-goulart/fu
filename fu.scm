@@ -204,6 +204,7 @@
                                              (cdr opt)))
                                       parsed-args)
                           (alist-ref option parsed-args))))
+           (terminal? (terminal-port? (current-output-port)))
            (str-pattern (check-pattern (get-opt '--)))
            (except (get-opt '-e 'multiple))
            (full-path? (substring-index "/" str-pattern))
@@ -219,7 +220,7 @@
                                                  (lambda (f)
                                                    (not (directory? f)))
                                                  identity))))
-      (if prompt?
+      (if (and prompt? terminal?)
           (maybe-prompt-files files pattern op full-path? multiple-choices?)
           (for-each (lambda (file)
                       (op (qs ((highlight-matches pattern full-path?) file))))
