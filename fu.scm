@@ -212,12 +212,17 @@
                          choice)
                (op (list-ref files choice)))))))
 
-(define (check-pattern pattern)
-  (when (null? pattern)
+(define (check-pattern pattern/maybe-dir)
+  ;; Return either <pattern> or (<pattern> . <dir>)
+  (when (null? pattern/maybe-dir)
     (die! "Missing pattern."))
-  (unless (null? (cdr pattern))
-    (die! "Multiple patterns are not supported."))
-  (car pattern))
+  (cond ((null? (cdr pattern/maybe-dir))
+         (car pattern/maybe-dir))
+        ((null? (cddr pattern/maybe-dir))
+         (cons (cadr pattern/maybe-dir)
+               (car pattern/maybe-dir)))
+        (else
+         (die! "Multiple patterns are not supported."))))
 
 (define (prepare-pattern pattern strict?)
   (if strict?
@@ -241,7 +246,13 @@
                                       parsed-args)
                           (alist-ref option parsed-args))))
            (terminal? (terminal-port? (current-output-port)))
-           (str-pattern (check-pattern (get-opt '--)))
+           (str-pattern/maybe-dir (check-pattern (get-opt '--)))
+           (str-pattern (if (pair? str-pattern/maybe-dir)
+                            (car str-pattern/maybe-dir)
+                            str-pattern/maybe-dir))
+           (dir (if (pair? str-pattern/maybe-dir)
+                    (cdr str-pattern/maybe-dir)
+                    dir))
            (except (get-opt '-e 'multiple))
            (full-path? (substring-index "/" str-pattern))
            (pattern (prepare-pattern str-pattern (get-opt '-s)))
@@ -288,10 +299,11 @@
 
 (define-command 'f
   #<<EOF
-f [-s] [-f] [-d <depth>] <pattern>
-  Find files that sloppily match <pattern> (a regular expression).
-  Sloppily means <pattern> will be surrounded by ".*" and will be case
-  insensitive.
+f [-s] [-f] [-d <depth>] [<dir>] <pattern>
+  Find files that sloppily match <pattern> (a regular expression). If
+  <dir> is provided, search in it, otherwise search in the current
+  directory.  Sloppily means <pattern> will be surrounded by ".*"
+  and will be case insensitive.
     -s:          strict mode -- disable sloppy mode.
     -e <except>: remove files matching <except> (not affected by -s)
     -f:          print full paths
@@ -302,14 +314,14 @@ EOF
 
 (define-command 'v
   #<<EOF
-v <f options> <pattern>
+v <f options> [<dir>] <pattern>
   Find files & view.
 EOF
   (fu-find/operate (fu-viewer)))
 
 (define-command 'e
   #<<EOF
-e <f options> <pattern>
+e <f options> [<dir>] <pattern>
   Find files & edit.
 EOF
   (fu-find/operate (fu-editor)))

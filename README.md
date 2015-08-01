@@ -8,30 +8,38 @@ It's shipped with commands to find, view and edit files:
     $ fu -h
     Usage: fu <command> <options>
     
-    f [-s] [-f] [-d <depth>] <pattern>
-      Find files that sloppily match <pattern> (a regular expression).
-      Sloppily means <pattern> will be surrounded by ".*" and will be case
-      insensitive.
+    f [-s] [-f] [-d <depth>] [<dir>] <pattern>
+      Find files that sloppily match <pattern> (a regular expression). If
+      <dir> is provided, search in it, otherwise search in the current
+      directory.  Sloppily means <pattern> will be surrounded by ".*"
+      and will be case insensitive.
         -s:          strict mode -- disable sloppy mode.
         -e <except>: remove files matching <except> (not affected by -s)
         -f:          print full paths
         -d <depth>:  limit search to <depth>
         -.        :  list files whose name start with "."
     
-    v <f options> <pattern>
+    v <f options> [<dir>] <pattern>
       Find files & view.
     
-    e <f options> <pattern>
+    e <f options> [<dir>] <pattern>
       Find files & edit.
     
 
 The `f` command will only print matches to the standard output.
-Example:
+Examples:
 
     $ fu f eval
     'eval.c'
     'eval.scm'
     'manual/Unit eval'
+
+    $ fu f /var/log auth
+    '/var/log/auth.log'
+    '/var/log/auth.log.1'
+    '/var/log/auth.log.2.gz'
+    '/var/log/auth.log.3.gz'
+    '/var/log/auth.log.4.gz'
 
 If the output is a terminal, fu will highlight matches.
 
@@ -150,22 +158,23 @@ Once defined, commands get integrated to fu:
     Usage: fu <command> <options>
     
     f [-s] [-f] [-d <depth>] <pattern>
-      Find files that sloppily match <pattern> (a regular expression).
-      Sloppily means <pattern> will be surrounded by ".*" and will be case
-      insensitive.
+      Find files that sloppily match <pattern> (a regular expression). If
+      <dir> is provided, search in it, otherwise search in the current
+      directory.  Sloppily means <pattern> will be surrounded by ".*"
+      and will be case insensitive.
         -s:          strict mode -- disable sloppy mode.
         -e <except>: remove files matching <except> (not affected by -s)
         -f:          print full paths
         -d <depth>:  limit search to <depth>
         -.        :  list files whose name start with "."
 
-    v <f options> <pattern>
+    v <f options> [<dir>] <pattern>
       Find files & view.
     
-    e <f options> <pattern>
+    e <f options> [<dir>] <pattern>
       Find files & edit.
     
-    m <f options> <pattern>
+    m <f options> [<dir>] <pattern>
       Find & play music.
 
 Here's another example, a command to open files based on files' extension:
@@ -200,17 +209,18 @@ your own.  The `remove-command!` procedure removes commands (symbols):
     $ fu -h
     Usage: fu <command> <options>
     
-    f [-s] [-f] [-d <depth>] <pattern>
-      Find files that sloppily match <pattern> (a regular expression).
-      Sloppily means <pattern> will be surrounded by ".*" and will be case
-      insensitive.
+    f [-s] [-f] [-d <depth>] [<dir>] <pattern>
+      Find files that sloppily match <pattern> (a regular expression). If
+      <dir> is provided, search in it, otherwise search in the current
+      directory.  Sloppily means <pattern> will be surrounded by ".*"
+      and will be case insensitive.
         -s:          strict mode -- disable sloppy mode.
         -e <except>: remove files matching <except> (not affected by -s)
         -f:          print full paths
         -d <depth>:  limit search to <depth>
         -.        :  list files whose name start with "."
 
-    v <f options> <pattern>
+    v <f options> [<dir>] <pattern>
       Find files & view.
 
 ### Deploying fu
