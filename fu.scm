@@ -1,5 +1,5 @@
 (import chicken scheme)
-(use data-structures extras irregex files srfi-1 srfi-13 utils)
+(use data-structures extras irregex files ports srfi-1 srfi-13 utils)
 (use (except posix find-files))
 
 ;; for command-line
@@ -45,7 +45,39 @@
    (lambda (file)
      (system (sprintf "less -R ~a" (qs file))))))
 
+(define fu-pager
+  (make-parameter
+   (case (software-type)
+     ((windows) "more /s")
+     (else "less"))))
+
+
 ;;; Procedures
+
+;; Adapted from chicken-doc (thanks zb)
+(define (with-output-to-pager thunk)
+  (cond ((get-environment-variable "EMACS")
+         (thunk))  ; Don't page in emacs subprocess.
+        ((not (terminal-port? (current-output-port)))
+         (thunk))  ; Don't page if stdout is not a TTY.
+        (else
+         (unless (get-environment-variable "LESS")
+           (setenv "LESS" "FRXis"))  ; Default 'less' options
+         (let ((pager (or (get-environment-variable "PAGER")
+                          (fu-pager))))
+           (if (or (not pager) (string=? pager "cat"))
+               (thunk)
+               ;; with-output-to-pipe does not close pipe on
+               ;; exception, borking tty
+               (let ((pipe (open-output-pipe pager))
+                     (rv #f))
+                 (handle-exceptions exn
+                   (begin (close-output-pipe pipe)
+                          (signal exn))
+                   ;; Can't reliably detect if pipe open fails.
+                   (set! rv (with-output-to-port pipe thunk)))
+                 (close-output-pipe pipe)
+                 rv))))))
 
 (define (remove-command! cmd)
   (handlers (alist-delete! cmd (handlers))))
@@ -76,14 +108,18 @@
 (define (prompt options option-formatter #!key multiple-choices?)
 
   (define (inner-prompt)
-    (let loop ((i 0)
-               (options options))
-      (cond ((null? options)
-             (display "Option (ENTER to abort): ")
-             (read-line))
-            (else
-             (printf "[~a] ~a [~a]\n" i (qs (option-formatter (car options))) i)
-             (loop (fx+ i 1) (cdr options))))))
+    (with-output-to-pager
+     (lambda ()
+       (let loop ((i 0)
+                  (options options))
+         (unless (null? options)
+           (printf "[~a] ~a [~a]\n"
+                   i
+                   (qs (option-formatter (car options))) i)
+           (loop (fx+ i 1) (cdr options))))
+       (flush-output)))
+    (display "Option (ENTER to abort): ")
+    (read-line))
 
   (let ((len-options (length options)))
     (let loop ()

@@ -66,6 +66,19 @@ Default value:
     (lambda (file)
       (system (sprintf "emacs ~a" (qs file))))
 
+#### fu-pager
+
+Used to paginate options.
+
+Default value:
+
+    (case (software-type)
+      ((windows) "more /s")
+      (else "less"))))
+
+Unless the environment variable `LESS` is set, `fu` will set it to
+`FRXis`.
+
 #### match-highlighter
 
 Default value:
