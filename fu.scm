@@ -195,7 +195,7 @@
              (if display-full-path?
                  (make-pathname cwd file)
                  file)))
-          files))))
+          (sort files string>?)))))
 
 (define (maybe-prompt-files files pattern op full-path? multiple-choices?)
   (cond ((null? files)

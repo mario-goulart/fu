@@ -29,8 +29,8 @@ The `f` command will only print matches to the standard output.
 Example:
 
     $ fu f eval
-    'eval.scm'
     'eval.c'
+    'eval.scm'
     'manual/Unit eval'
 
 If the output is a terminal, fu will highlight matches.
@@ -39,8 +39,8 @@ The `v` and `e` commands will open the file if they find a single
 match, or prompt in case of multiple matches.  Example:
 
     $ fu v eval
-    [0] 'eval.scm' [0]
-    [1] 'eval.c' [1]
+    [0] 'eval.c' [0]
+    [1] 'eval.scm' [1]
     [2] 'manual/Unit eval' [2]
     Option (ENTER to abort): 
 
