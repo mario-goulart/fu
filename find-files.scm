@@ -18,7 +18,9 @@
           (let* ((filename (##sys#slot fs 0))
                  (f (make-pathname dir filename))
                  (rest (##sys#slot fs 1)))
-            (cond ((directory? f)
+            (cond ((and (directory? f)
+                        ;; Don't error out at unreadable directories
+                        (file-read-access? f))
                    (cond ((member filename '("." "..")) (loop dir rest r))
                          ((and (symbolic-link? f) (not follow))
                           (loop dir rest (if (pproc f) (action f r) r)))
