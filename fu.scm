@@ -115,7 +115,7 @@
          (unless (null? options)
            (printf "[~a] ~a [~a]\n"
                    i
-                   (qs (option-formatter (car options))) i)
+                   (option-formatter (car options)) i)
            (loop (fx+ i 1) (cdr options))))
        (flush-output)))
     (display "Option (ENTER to abort): ")
