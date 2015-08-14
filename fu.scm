@@ -165,7 +165,7 @@
 (define (fu-find-files pattern
                        #!key dir
                              depth
-                             except
+                             (except '())
                              match-full-path?
                              display-full-path?
                              dotfiles?
