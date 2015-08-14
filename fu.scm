@@ -197,10 +197,12 @@
                  file)))
           (sort files string>?)))))
 
-(define (maybe-prompt-files files pattern op #!key full-path? multiple-choices?)
+(define (maybe-prompt-files files pattern op #!key full-path?
+                                                   multiple-choices?
+                                                   prompt-single-result?)
   (cond ((null? files)
          (exit 1))
-        ((null? (cdr files))
+        ((and (null? (cdr files)) (not prompt-single-result?))
          (op (car files)))
         (else
          (let ((choice (prompt files
