@@ -197,7 +197,7 @@
                  file)))
           (sort files string>?)))))
 
-(define (maybe-prompt-files files pattern op full-path? multiple-choices?)
+(define (maybe-prompt-files files pattern op #!key full-path? multiple-choices?)
   (cond ((null? files)
          (exit 1))
         ((null? (cdr files))
@@ -268,7 +268,9 @@
                                                    (not (directory? f)))
                                                  identity))))
       (if (and prompt? terminal?)
-          (maybe-prompt-files files pattern op full-path? multiple-choices?)
+          (maybe-prompt-files files pattern op
+                              full-path?: full-path?
+                              multiple-choices?: multiple-choices?)
           (let ((op (if terminal? op print)))
             (for-each (lambda (file)
                         (op (qs ((highlight-matches pattern full-path?) file))))
