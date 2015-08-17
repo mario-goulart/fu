@@ -97,21 +97,21 @@
                          args))
   (exit 1))
 
-(define (highlight-match path pattern full-path?)
+(define (highlight-match path pattern)
   (irregex-replace/all pattern
                        path
                        (lambda (m)
                          ((match-highlighter)
                           (irregex-match-substring m)))))
 
-(define (highlight-matches pattern full-path?)
+(define (highlight-matches pattern)
   (let ((compiled-pattern
          (irregex
           (if (sloppy-pattern? pattern)
               (sloppy->strict-ci-pattern pattern)
               pattern))))
     (lambda (option)
-      (highlight-match option compiled-pattern full-path?))))
+      (highlight-match option compiled-pattern))))
 
 
 (define (prompt options option-formatter #!key multiple-choices?)
@@ -215,7 +215,7 @@
          (op (car files)))
         (else
          (let ((choice (prompt files
-                               (highlight-matches pattern full-path?)
+                               (highlight-matches pattern)
                                multiple-choices?: multiple-choices?)))
            (if multiple-choices?
                (for-each (lambda (choice)
@@ -284,7 +284,7 @@
                               multiple-choices?: multiple-choices?)
           (let ((op (if terminal? op print)))
             (for-each (lambda (file)
-                        (op (qs ((highlight-matches pattern full-path?) file))))
+                        (op (qs ((highlight-matches pattern) file))))
                       files))))))
 
 ;;;
