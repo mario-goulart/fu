@@ -323,7 +323,7 @@ f [-s] [-f] [-d <depth>] [<dir>] <pattern>
     -d <depth>:  limit search to <depth>
     -.        :  list files whose name start with "."
 EOF
-  (fu-find/operate print prompt?: #f non-dirs-only?: #f))
+  (fu-find/operate (fu-actions) non-dirs-only?: #f))
 
 (define-command 'v
   #<<EOF
