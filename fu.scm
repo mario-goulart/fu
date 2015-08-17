@@ -51,6 +51,15 @@
      ((windows) "more /s")
      (else "less"))))
 
+(define fu-actions
+  (make-parameter
+   (lambda (selection)
+     (if (terminal-port? (current-output-port))
+         (let ((option (prompt '("View" "Edit") identity)))
+           (if (zero? option)
+               ((fu-viewer) selection)
+               ((fu-editor) selection)))
+         (print selection)))))
 
 ;;; Procedures
 

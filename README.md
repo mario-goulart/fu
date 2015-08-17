@@ -74,6 +74,21 @@ Default value:
     (lambda (file)
       (system (sprintf "emacs ~a" (qs file))))
 
+#### fu-actions
+
+A one-argument procedure (the option user selected) which is applied
+the results of commands that perform no action (e.g., `f`).
+
+Default value:
+
+   (lambda (selection)
+     (if (terminal-port? (current-output-port))
+         (let ((option (prompt '("View" "Edit") identity)))
+           (if (zero? option)
+               ((fu-viewer) selection)
+               ((fu-editor) selection)))
+         (print selection)))
+
 #### fu-pager
 
 Used to paginate options.
