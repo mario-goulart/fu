@@ -216,7 +216,10 @@
   (cond ((null? files)
          (exit 1))
         ((and (null? (cdr files)) (not prompt-single-result?))
-         (op (car files)))
+         (let ((path (car files)))
+           (print (format-match path pattern))
+           (unless (directory? path)
+             (op path))))
         (else
          (let ((choice (prompt files
                                (format-matches pattern)
