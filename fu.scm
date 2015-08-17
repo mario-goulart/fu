@@ -150,13 +150,13 @@
                     (printf "~a: invalid option.\n" choice)
                     (loop)))))))))
 
-(define (require-positive-integer opt-name)
+(define (require-positive-integer-or-zero opt-name)
   (lambda (option)
     (or (and-let* ((n (string->number option))
                    ((exact? n))
-                   ((fx> n 0)))
+                   ((fx>= n 0)))
           n)
-        (die! "~a: a positive integer is required." opt-name))))
+        (die! "~a: a positive integer or zero is required." opt-name))))
 
 (define (sloppy-pattern sre)
   `(w/nocase (seq (* nonl) ,sre (* nonl))))
@@ -248,7 +248,7 @@
                                   (-f)
                                   (-.)
                                   (-e . except)
-                                  (-d . ,(require-positive-integer '-d)))))
+                                  (-d . ,(require-positive-integer-or-zero '-d)))))
            (get-opt (lambda (option #!optional multiple?)
                       (if multiple?
                           (filter-map (lambda (opt)
