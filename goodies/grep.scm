@@ -20,7 +20,9 @@
           ((null? (cdr options))
            (action (get-filename 0)))
           (else
-           (action (get-filename (prompt options identity)))))))
+           (if (terminal-port? (current-output-port))
+               (action (get-filename (prompt options identity)))
+               (for-each print options))))))
 
 (define (traditional-grep action args)
   ;; Assuming GNU grep
@@ -55,7 +57,9 @@
           ((null? (cdr options))
            (action (get-filename 0)))
           (else
-           (action (get-filename (prompt options identity)))))))
+           (if (terminal-port? (current-output-port))
+               (action (get-filename (prompt options identity)))
+               (for-each print options))))))
 
 (define (grep action args)
   (let loop ((dir (normalize-pathname (current-directory))))
