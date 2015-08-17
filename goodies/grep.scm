@@ -70,6 +70,14 @@
           (else
            (loop (normalize-pathname (make-pathname dir "..")))))))
 
+(define-command 'g
+  "g <grep options> <pattern>
+  Equivalent to 'grep <grep options> <pattern>'.  If in a git repository,
+  will run 'git grep <git grep options> <pattern>. Upon finding results,
+  this command will prompt for the action."
+  (lambda args
+    (grep (fu-actions) args)))
+
 (define-command 'gv
   "gv <grep options> <pattern>
   Equivalent to 'grep <grep options> <pattern>'.  If in a git repository,
