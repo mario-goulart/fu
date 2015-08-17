@@ -97,21 +97,25 @@
                          args))
   (exit 1))
 
-(define (highlight-match path pattern)
-  (irregex-replace/all pattern
-                       path
-                       (lambda (m)
-                         ((match-highlighter)
-                          (irregex-match-substring m)))))
+(define (format-match path pattern)
+  (let ((highlighted
+         (irregex-replace/all pattern
+                              path
+                              (lambda (m)
+                                ((match-highlighter)
+                                 (irregex-match-substring m))))))
+    (if (directory? path)
+        (string-append highlighted "/")
+        highlighted)))
 
-(define (highlight-matches pattern)
+(define (format-matches pattern)
   (let ((compiled-pattern
          (irregex
           (if (sloppy-pattern? pattern)
               (sloppy->strict-ci-pattern pattern)
               pattern))))
     (lambda (option)
-      (highlight-match option compiled-pattern))))
+      (format-match option compiled-pattern))))
 
 
 (define (prompt options option-formatter #!key multiple-choices?)
@@ -215,7 +219,7 @@
          (op (car files)))
         (else
          (let ((choice (prompt files
-                               (highlight-matches pattern)
+                               (format-matches pattern)
                                multiple-choices?: multiple-choices?)))
            (if multiple-choices?
                (for-each (lambda (choice)
@@ -284,7 +288,7 @@
                               multiple-choices?: multiple-choices?)
           (let ((op (if terminal? op print)))
             (for-each (lambda (file)
-                        (op (qs ((highlight-matches pattern) file))))
+                        (op (qs ((format-matches pattern) file))))
                       files))))))
 
 ;;;
