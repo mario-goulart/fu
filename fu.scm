@@ -26,7 +26,7 @@
    (let ((tty? (terminal-port? (current-output-port))))
      (lambda (match)
        (if tty?
-           (string-append "\x1b[31;1m" match "\x1b[0m")
+           (colorize match 'red)
            match)))))
 
 ;; A one-argument procedure (predicate) that will be given a file
@@ -38,12 +38,14 @@
 (define fu-editor
   (make-parameter
    (lambda (file)
-     (system (sprintf "emacs ~a" (qs file))))))
+     (system (sprintf "emacs ~a" (qs file)))
+     (print-selected-file file))))
 
 (define fu-viewer
   (make-parameter
    (lambda (file)
-     (system (sprintf "less -R ~a" (qs file))))))
+     (system (sprintf "less -R ~a" (qs file)))
+     (print-selected-file file))))
 
 (define fu-pager
   (make-parameter
@@ -58,10 +60,26 @@
          (let ((option (prompt '("View" "Edit") identity)))
            (if (zero? option)
                ((fu-viewer) selection)
-               ((fu-editor) selection)))
-         (print selection)))))
+               ((fu-editor) selection)))))))
 
 ;;; Procedures
+
+(define (colorize text color)
+  (string-append
+   (case color
+     ((red) "\x1b[31;1m")
+     ((green) "\x1b[32;1m")
+     ((blue) "\x1b[34;1m")
+     (else ""))
+   text
+   "\x1b[0m"))
+
+(define (print-selected-file path)
+  (print (colorize
+          (if (absolute-pathname? path)
+              path
+              (make-pathname (current-directory) path))
+          'blue)))
 
 ;; Adapted from chicken-doc (thanks zb)
 (define (with-output-to-pager thunk)
