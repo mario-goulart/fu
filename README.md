@@ -81,13 +81,13 @@ the results of commands that perform no action (e.g., `f`).
 
 Default value:
 
-   (lambda (selection)
-     (if (terminal-port? (current-output-port))
-         (let ((option (prompt '("View" "Edit") identity)))
-           (if (zero? option)
-               ((fu-viewer) selection)
-               ((fu-editor) selection)))
-         (print selection)))
+    (lambda (selection)
+      (if (terminal-port? (current-output-port))
+          (let ((option (prompt '("View" "Edit") identity)))
+            (if (zero? option)
+                ((fu-viewer) selection)
+                ((fu-editor) selection)))
+          (print selection)))
 
 #### fu-pager
 
