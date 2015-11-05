@@ -335,7 +335,9 @@
 ;;; Handlers
 ;;;
 
-(define-command 'f
+(define (define-built-in-commands)
+
+  (define-command 'f
   #<<EOF
 f [-s] [-f] [-d <depth>] [<dir>] <pattern>
   Find files that sloppily match <pattern> (a regular expression). If
@@ -350,19 +352,19 @@ f [-s] [-f] [-d <depth>] [<dir>] <pattern>
 EOF
   (fu-find/operate (fu-actions) non-dirs-only?: #f))
 
-(define-command 'v
+  (define-command 'v
   #<<EOF
 v <f options> [<dir>] <pattern>
   Find files & view.
 EOF
   (fu-find/operate (fu-viewer)))
 
-(define-command 'e
+  (define-command 'e
   #<<EOF
 e <f options> [<dir>] <pattern>
   Find files & edit.
 EOF
-  (fu-find/operate (fu-editor)))
+  (fu-find/operate (fu-editor))))
 
 
 ;;;
@@ -387,6 +389,10 @@ EOF
 (let ((args (command-line-arguments)))
 
   (load-conf)
+
+  ;; define-built-in-commands should be called after load-conf, to
+  ;; honor parameters that might have been configured by users
+  (define-built-in-commands)
 
   (when (null? args)
     (usage 1))
