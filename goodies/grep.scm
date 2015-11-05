@@ -4,7 +4,7 @@
          (colorize? (terminal-port? (current-output-port)))
          (options (call-with-input-pipe
                    (sprintf
-                    "git grep ~a ~a ~a"
+                    "git --no-pager grep ~a ~a ~a"
                     (if colorize? "--color=always" "--color=never")
                     (string-intersperse opts)
                     (qs pattern))
