@@ -390,6 +390,10 @@ EOF
 
   (load-conf)
 
+  ;; Ignore SIGPIPE, otherwise with-output-to-pipe would make fu exit
+  ;; without displaying the prompt, in case user terminates the pager.
+  (set-signal-handler! signal/pipe void)
+
   ;; define-built-in-commands should be called after load-conf, to
   ;; honor parameters that might have been configured by users
   (define-built-in-commands)
