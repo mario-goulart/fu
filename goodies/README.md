@@ -25,6 +25,10 @@ This extension configures the `constraints` parameters to make fu
 ignore `.git` directories when searching for files with the `-.`
 option.
 
+### ignore-emacs-backups.scm
+
+Ignore files starting with `#` or ending with `~`.
+
 
 ## Usage example
 
