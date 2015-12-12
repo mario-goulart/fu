@@ -57,6 +57,7 @@
   (make-parameter
    (lambda (selection)
      (when (terminal-port? (current-output-port))
+       (print-selected-file selection)
        (let ((option (prompt '("View" "Edit") identity)))
          (if (zero? option)
              ((fu-viewer) selection)
