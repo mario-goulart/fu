@@ -199,7 +199,6 @@
                              depth
                              (except '())
                              match-full-path?
-                             display-full-path?
                              dotfiles?
                              (constraint identity))
   (let ((cwd (current-directory))
@@ -221,13 +220,7 @@
                                   (constraint f)))
                      dotfiles: dotfiles?
                      limit: depth)))
-    (reverse
-     (map (lambda (file)
-            (normalize-pathname
-             (if display-full-path?
-                 (make-pathname cwd file)
-                 file)))
-          (sort files string>?)))))
+    (reverse (map normalize-pathname (sort files string>?)))))
 
 (define (maybe-prompt-files files pattern op #!key full-path?
                                                    multiple-choices?
@@ -304,7 +297,6 @@
                      (fu-find-files pattern
                                     dir: dir
                                     depth: (get-opt '-d)
-                                    display-full-path?: (get-opt '-f)
                                     match-full-path?: full-path?
                                     except: (and except (map string->sre except))
                                     dotfiles?: (get-opt '-.')
