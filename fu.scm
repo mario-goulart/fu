@@ -116,10 +116,12 @@
                          args))
   (exit 1))
 
-(define (format-match path pattern)
+(define (format-match path pattern #!key (pre-formatter identity))
+  ;; pre-formatter is a one argument procedure that will be given the
+  ;; raw option, before the coloring.
   (let ((highlighted
          (irregex-replace/all pattern
-                              path
+                              (pre-formatter path)
                               (lambda (m)
                                 ((match-highlighter)
                                  (irregex-match-substring m))))))
@@ -127,14 +129,14 @@
         (string-append highlighted "/")
         highlighted)))
 
-(define (format-matches pattern)
+(define (format-matches pattern #!key (pre-formatter identity))
   (let ((compiled-pattern
          (irregex
           (if (sloppy-pattern? pattern)
               (sloppy->strict-ci-pattern pattern)
               pattern))))
     (lambda (option)
-      (format-match option compiled-pattern))))
+      (format-match option compiled-pattern pre-formatter: pre-formatter))))
 
 
 (define (prompt options option-formatter #!key multiple-choices?)
@@ -222,18 +224,19 @@
                      limit: depth)))
     (reverse (map normalize-pathname (sort files string>?)))))
 
-(define (maybe-prompt-files files pattern op #!key multiple-choices?
+(define (maybe-prompt-files files pattern op #!key (pre-formatter identity)
+                                                   multiple-choices?
                                                    prompt-single-result?)
   (cond ((null? files)
          (exit 1))
         ((and (null? (cdr files)) (not prompt-single-result?))
          (let ((path (car files)))
-           (print (format-match path pattern))
+           (print (format-match path pattern pre-formatter: pre-formatter))
            (unless (directory? path)
              (op path))))
         (else
          (let ((choice (prompt files
-                               (format-matches pattern)
+                               (format-matches pattern pre-formatter: pre-formatter)
                                multiple-choices?: multiple-choices?)))
            (if multiple-choices?
                (for-each (lambda (choice)
