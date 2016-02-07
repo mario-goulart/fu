@@ -266,7 +266,10 @@
       (string->sre pattern)
       (sloppy-pattern (string->sre pattern))))
 
-(define (fu-find/operate op #!key (prompt? #t) (non-dirs-only? #t) (dir ".") multiple-choices?)
+(define (fu-find/operate op #!key (prompt? #t)
+                                  (non-dirs-only? #t)
+                                  (dir ".")
+                                  multiple-choices?)
   (lambda args
     (let* ((parsed-args
             (parse-command-line args
@@ -287,23 +290,29 @@
            (str-pattern (if (pair? str-pattern/maybe-dir)
                             (car str-pattern/maybe-dir)
                             str-pattern/maybe-dir))
-           (dir (if (pair? str-pattern/maybe-dir)
-                    (cdr str-pattern/maybe-dir)
-                    dir))
+           (dirs (if (pair? str-pattern/maybe-dir)
+                     (list (cdr str-pattern/maybe-dir))
+                     ;; Backwards compatibility
+                     (if (pair? dir)
+                         dir
+                         (list dir))))
            (except (get-opt '-e 'multiple))
            (full-path? (substring-index "/" str-pattern))
            (pattern (prepare-pattern str-pattern (get-opt '-s)))
-           (files (fu-find-files pattern
-                                 dir: dir
-                                 depth: (get-opt '-d)
-                                 display-full-path?: (get-opt '-f)
-                                 match-full-path?: full-path?
-                                 except: (and except (map string->sre except))
-                                 dotfiles?: (get-opt '-.')
-                                 constraint: (if non-dirs-only?
-                                                 (lambda (f)
-                                                   (not (directory? f)))
-                                                 identity))))
+           (files (append-map
+                   (lambda (dir)
+                     (fu-find-files pattern
+                                    dir: dir
+                                    depth: (get-opt '-d)
+                                    display-full-path?: (get-opt '-f)
+                                    match-full-path?: full-path?
+                                    except: (and except (map string->sre except))
+                                    dotfiles?: (get-opt '-.')
+                                    constraint: (if non-dirs-only?
+                                                    (lambda (f)
+                                                      (not (directory? f)))
+                                                    identity)))
+                   dirs)))
       (if (and prompt? terminal?)
           (maybe-prompt-files files pattern op
                               full-path?: full-path?
