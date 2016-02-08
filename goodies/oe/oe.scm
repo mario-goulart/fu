@@ -1,11 +1,19 @@
 ;; TODO: parse local.conf to expand MACHINE and DISTRO
 ;; TODO: x: -e to indicate an expression.  Example: oe x -e '${AVAR}/${BVAR}'
 
-(use data-structures extras srfi-1 srfi-13)
+(use data-structures extras files ports posix srfi-1 srfi-13 utils)
 
 (define +build-dir+ #f)
 (define +local-conf-file+ #f)
 (define +bitbake-data+ #f)
+(define +fu-oe-data-dir+ #f)
+(define +cached-oe-data-file+ #f)
+
+(define +tracked-config-files+
+  '("local.conf" "bblayers.conf" "site.conf"))
+
+(define +cached-oe-variables+
+  '(DEPLOY_DIR BBLAYERS TMPDIR PACKAGE_CLASSES))
 
 (define (parse-bitbake-output bitbake-data-file)
   ;; Return a list of unparsed variable context blocks
@@ -74,6 +82,9 @@
                         pre-expansion-value
                         final-value))))))
         (cons #f #f))))
+
+(define (populate-bitbake-data-from-cache!)
+  (set! +bitbake-data+ (read-file +cached-oe-data-file+)))
 
 (define (populate-bitbake-data! #!optional recipe)
   (unless +bitbake-data+
@@ -229,6 +240,114 @@
         (let ((option (prompt (map car labels/actions) identity)))
           ((cdr (list-ref labels/actions option)) selection))))))
 
+(define (sha256-sum file)
+  (car
+   (string-split
+    (with-input-from-pipe (sprintf "sha256sum ~a" (qs file)) read-all))))
+
+(define debug-level
+  (make-parameter
+   (or (and-let* ((level (get-environment-variable "FU_OE_DEBUG")))
+         (or (string->number level) 0))
+       0)))
+
+(define debug-formatter
+  (make-parameter
+   (lambda (level fmt)
+     (sprintf "DEBUG[~a] ~a\n" level fmt))))
+
+(define (debug level fmt . args)
+  (when (<= level (debug-level))
+    (apply fprintf `(,(current-error-port) ,((debug-formatter) level fmt) ,@args))))
+
+(define (config-changed?)
+  (handle-exceptions exn
+    #t
+    (let ((stored-sums
+           (read-file (make-pathname +fu-oe-data-dir+ "config-sums.scm")))
+          (actual-sums
+           (map (lambda (file)
+                  (cons file
+                        (sha256-sum (make-pathname (list +build-dir+ "conf")
+                                                   file))))
+                +tracked-config-files+)))
+      (any (lambda (file)
+             (not (equal? (alist-ref file actual-sums equal?)
+                          (alist-ref file stored-sums equal?))))
+           +tracked-config-files+))))
+
+(define (write-config-sums!)
+  (with-output-to-file (make-pathname +fu-oe-data-dir+ "config-sums.scm")
+    (lambda ()
+      (for-each
+       (lambda (file)
+         (pp (cons file
+                   (sha256-sum (make-pathname (list +build-dir+ "conf")
+                                              file)))))
+       +tracked-config-files+))))
+
+(define (write-basic-oe-data!)
+  (debug 2 "Writing basic OE data")
+  (populate-bitbake-data!)
+  (with-output-to-file +cached-oe-data-file+
+    (lambda ()
+      (for-each (lambda (var)
+                  (pp (cons var
+                            (cdr (alist-ref var +bitbake-data+)))))
+                +cached-oe-variables+)))
+  ;; Maybe bitbake must have to be rerun in a recipe-specific basis,
+  ;; so we just empty the in-memory data
+  (set! +bitbake-data+ #f))
+
+(define (maybe-store-basic-oe-data!)
+  (when (config-changed?)
+    (debug 0 "Configuration files have changed.  Updating sums and cache...")
+    (write-config-sums!)
+    (write-basic-oe-data!)))
+
+(define (oe-git-grep action args)
+  (let* ((pattern (last args))
+         (opts (butlast args))
+         (colorize? (terminal-port? (current-output-port)))
+         (options
+          (append-map
+           (lambda (dir)
+             (change-directory dir)
+             (map (lambda (line)
+                    (cons dir line))
+                  (call-with-input-pipe
+                   (sprintf
+                    "git --no-pager grep ~a ~a ~a"
+                    (if colorize? "--color=always" "--color=never")
+                    (string-intersperse opts)
+                    (qs pattern))
+                   read-lines)))
+           (string-split (get-var 'BBLAYERS))))
+         (get-filename
+          (lambda (choice)
+            (let ((option (list-ref options choice)))
+              ;; Let's hope filenames don't contain ":"
+              (make-pathname (car option)
+                             (string-drop-right ;; remove \x1b[36m
+                              (car (string-split (cdr option) ":"))
+                              5))))))
+    (cond ((null? options)
+           (exit 1))
+          ((null? (cdr options))
+           (action (get-filename 0)))
+          (else
+           (if (terminal-port? (current-output-port))
+               (action
+                (get-filename
+                 (prompt
+                  (map (lambda (o)
+                         (make-pathname (colorize
+                                         (pathname-strip-directory (car o))
+                                         'blue)
+                                        (cdr o)))
+                       options)
+                  identity)))
+               (for-each print options))))))
 
 (define oe-usage
   "Usage: oe <command> <options>
@@ -270,7 +389,13 @@ x [-s] [-u] <variable> [<recipe>]
         (die! "The build environment is not set.  Aborting."))
       (set! +build-dir+ builddir)
       (set! +local-conf-file+
-        (make-pathname (list +build-dir+ "conf") "local.conf")))
+        (make-pathname (list +build-dir+ "conf") "local.conf"))
+      (set! +fu-oe-data-dir+ (make-pathname builddir ".fu-oe"))
+      (set! +cached-oe-data-file+ (make-pathname +fu-oe-data-dir+
+                                                 "cached-variables.scm")))
+
+    (create-directory +fu-oe-data-dir+ 'recursively)
+    (maybe-store-basic-oe-data!)
 
     (let ((cmd (string->symbol (car args)))
           (oe-args (cdr args)))
@@ -297,7 +422,7 @@ x [-s] [-u] <variable> [<recipe>]
                       (show-variable-expansions var))))))
 
         ((f e v sf se sv)
-         (populate-bitbake-data!)
+         (populate-bitbake-data-from-cache!)
          (apply (fu-find/operate (case cmd
                                    ((f sf) (fu-actions))
                                    ((e se) (fu-editor))
@@ -308,7 +433,7 @@ x [-s] [-u] <variable> [<recipe>]
                 (cdr args)))
 
         ((pf pv pi ps px)
-         (populate-bitbake-data!)
+         (populate-bitbake-data-from-cache!)
          (apply (fu-find/operate (case cmd
                                    ((pf) (package-actions))
                                    ((pv) package-view)
@@ -346,11 +471,12 @@ x [-s] [-u] <variable> [<recipe>]
         ((r)
          (die! "FIXME"))
 
-        ((gv)
-         (die! "FIXME"))
-
-        ((ge)
-         (die! "FIXME"))
+        ((gv gv)
+         (populate-bitbake-data-from-cache!)
+         (oe-git-grep (case cmd
+                        ((gv) (fu-viewer))
+                        ((ge) (fu-editor)))
+                      oe-args))
 
         ((d)
          (die! "FIXME"))
