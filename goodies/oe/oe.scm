@@ -298,7 +298,8 @@
   (set! +bitbake-data+ #f))
 
 (define (maybe-store-basic-oe-data!)
-  (when (config-changed?)
+  (when (or (config-changed?)
+            (not (file-exists? +cached-oe-data-file+)))
     (debug 0 "Configuration files have changed.  Updating sums and cache...")
     (write-config-sums!)
     (write-basic-oe-data!)))
