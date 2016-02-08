@@ -353,27 +353,49 @@
 
 <command>s:
 
-f [-s] [-f] [-d <depth>] <pattern>
-  Find files that sloppily match <pattern> (a regular expression).
-  Sloppily means <pattern> will be surrounded by \".*\" and will be
-  case insensitive.
+find [-s] [-f] [-d <depth>] <pattern>
+  Short command: f.  Find files that sloppily match <pattern> (a regular
+  expression) in the sources directory.  Sloppily means <pattern> will
+  be surrounded by \".*\" and will be case insensitive.
     -s:          strict mode -- disable sloppy mode.
     -e <except>: remove files matching <except> (not affected by -s)
     -f:          print full paths
     -d <depth>:  limit search to <depth>
     -.        :  list files whose name start with \".\"
 
-v <f options> [<dir>] <pattern>
-  Find files & view.
+view <`find' options> [<dir>] <pattern>
+  Short command: v.  Find files & view.
 
-e <f options> [<dir>] <pattern>
-  Find files & edit.
+edit <`find' options> [<dir>] <pattern>
+  Short command: e.  Find files & edit.
 
-x [-s] [-u] <variable> [<recipe>]
-  Expand <variable>.  If <recipe> is provided, expand <variable> in the
-  context of <recipe>.  If -s (short) is provided, only the final value
-  will be printed.  If -u is provided, the raw output of 'bitbake -e'
-  for the variable in question will be printed.
+expand [-s] [-u] <variable> [<recipe>]
+  Short command: x.  Expand <variable>.  If <recipe> is provided, expand
+  <variable> in the context of <recipe>.  If -s (short) is provided, only
+  the final value will be printed.  If -u is provided, the raw output of
+  'bitbake -e' for the variable in question will be printed.
+
+sysroot-find [-s] [-f] [-d <depth>] <pattern>
+  Short command: sf.  Similar to `find', but instead of searching for files
+  in the sources directory, search in the sysroot directories.
+
+sysroot-view <`sysroot-find' options> <pattern>
+  Short command: sv.  Similar to `view', but instead of searching for files
+  in the sources directory, search in the sysroot directories.
+
+sysroot-edit <`sysroot-find' options> <pattern>
+  Short command: se.  Similar to `edit', but instead of searching for files
+  in the sources directory, search in the sysroot directories.
+
+pkg-find
+pkg-view
+pkg-info
+pkg-scripts
+pkg-extract
+
+log
+
+run
 ")
 
 (define-command 'oe
@@ -404,11 +426,11 @@ x [-s] [-u] <variable> [<recipe>]
     (let ((cmd (string->symbol (car args)))
           (oe-args (cdr args)))
       (case cmd
-        ((h help)
+        ((help h)
          (print oe-usage)
          (exit))
 
-        ((x)
+        ((expand x)
          (if (null? oe-args)
              (die! "Missing variable.  Aborting.")
              (let* ((non-options (remove (lambda (arg)
@@ -425,29 +447,33 @@ x [-s] [-u] <variable> [<recipe>]
                      (else
                       (show-variable-expansions var))))))
 
-        ((f e v sf se sv)
+        ((find edit view sysroot-find sysroot-view sysroot-edit
+          f e v sf se sv)
          (populate-bitbake-data-from-cache!)
          (apply (fu-find/operate (case cmd
-                                   ((f sf) (fu-actions))
-                                   ((e se) (fu-editor))
-                                   ((v sv) (fu-viewer)))
+                                   ((find sysroot-find f sf) (fu-actions))
+                                   ((edit sysroot-edit e se) (fu-editor))
+                                   ((view sysroot-view v sv) (fu-viewer)))
                                  dir: (case cmd
-                                        ((f e v) (get-oe-source-directories))
-                                        ((sf se sv) (get-oe-sysroots-directory))))
+                                        ((find edit view f e v)
+                                         (get-oe-source-directories))
+                                        ((sysroot-find sysroot-edit sysroot-view sf se sv)
+                                         (get-oe-sysroots-directory))))
                 (cdr args)))
 
-        ((pf pv pi ps px)
+        ((pkg-find pkg-view pkg-info pkg-scripts pkg-extract
+          pf pv pi ps px)
          (populate-bitbake-data-from-cache!)
          (apply (fu-find/operate (case cmd
-                                   ((pf) (package-actions))
-                                   ((pv) package-view)
-                                   ((pi) package-info)
-                                   ((ps) package-scripts)
-                                   ((px) package-extract))
+                                   ((pkg-find pf) (package-actions))
+                                   ((pkg-view pv) package-view)
+                                   ((pkg-info pi) package-info)
+                                   ((pkg-scripts ps) package-scripts)
+                                   ((pkg-extract px) package-extract))
                                  dir: (get-oe-packages-directories))
                 (cdr args)))
 
-        ((l)
+        ((log l)
          (if (null? oe-args)
              (die! "Missing recipe.  Aborting.")
              (let* ((non-options (remove (lambda (arg)
@@ -472,20 +498,17 @@ x [-s] [-u] <variable> [<recipe>]
                   (fu-viewer)
                   pre-formatter: pathname-strip-directory)))))
 
-        ((r)
+        ((run r)
          (die! "FIXME"))
 
-        ((gv gv)
+        ((grep-view grep-edit gv ge)
          (populate-bitbake-data-from-cache!)
          (oe-git-grep (case cmd
-                        ((gv) (fu-viewer))
-                        ((ge) (fu-editor)))
+                        ((grep-view gv) (fu-viewer))
+                        ((grep-edit ge) (fu-editor)))
                       oe-args))
 
         ((d)
-         (die! "FIXME"))
-
-        ((cd)
          (die! "FIXME"))
 
         (else (die! "Unknown command: ~a" cmd))))))
