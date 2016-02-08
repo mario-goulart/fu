@@ -8,9 +8,7 @@
 (define +bitbake-data+ #f)
 (define +fu-oe-data-dir+ #f)
 (define +cached-oe-data-file+ #f)
-
-(define +tracked-config-files+
-  '("local.conf" "bblayers.conf" "site.conf"))
+(define +tracked-config-files+ #f)
 
 (define +cached-oe-variables+
   '(DEPLOY_DIR BBLAYERS TMPDIR PACKAGE_CLASSES))
@@ -392,7 +390,12 @@ x [-s] [-u] <variable> [<recipe>]
         (make-pathname (list +build-dir+ "conf") "local.conf"))
       (set! +fu-oe-data-dir+ (make-pathname builddir ".fu-oe"))
       (set! +cached-oe-data-file+ (make-pathname +fu-oe-data-dir+
-                                                 "cached-variables.scm")))
+                                                 "cached-variables.scm"))
+      (set! +tracked-config-files+
+        (filter (lambda (file)
+                  (file-exists? (make-pathname (list +build-dir+ "conf")
+                                               file)))
+                '("local.conf" "bblayers.conf" "site.conf"))))
 
     (create-directory +fu-oe-data-dir+ 'recursively)
     (maybe-store-basic-oe-data!)
