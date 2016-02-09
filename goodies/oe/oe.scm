@@ -176,12 +176,15 @@
             (if (every (lambda (pkg-class)
                          (memq pkg-class known-pkg-classes))
                        pkg-classes)
-                (map (lambda (pkg-class)
-                       (make-pathname deploy-dir
-                                      (substring (symbol->string pkg-class)
-                                                 8 ;; length of package_
-                                                 )))
-                     pkg-classes)
+                (filter-map
+                 (lambda (pkg-class)
+                   (let ((dir (make-pathname deploy-dir
+                                             (substring (symbol->string pkg-class)
+                                                        8 ;; length of package_
+                                                        ))))
+                     (and (directory-exists? dir)
+                          dir)))
+                 pkg-classes)
                 (list deploy-dir)))))
       dirs)))
 
@@ -489,14 +492,16 @@ run
         ((pkg-find pkg-view pkg-info pkg-scripts pkg-extract
           pf pv pi ps px)
          (populate-bitbake-data-from-cache!)
-         (apply (fu-find/operate (case cmd
-                                   ((pkg-find pf) (package-actions))
-                                   ((pkg-view pv) package-view)
-                                   ((pkg-info pi) package-info)
-                                   ((pkg-scripts ps) package-scripts)
-                                   ((pkg-extract px) package-extract))
-                                 dir: (get-oe-packages-directories))
-                oe-args))
+         (let ((pkg-dirs (get-oe-packages-directories)))
+           (unless (null? pkg-dirs)
+             (apply (fu-find/operate (case cmd
+                                       ((pkg-find pf) (package-actions))
+                                       ((pkg-view pv) package-view)
+                                       ((pkg-info pi) package-info)
+                                       ((pkg-scripts ps) package-scripts)
+                                       ((pkg-extract px) package-extract))
+                                     dir: pkg-dirs)
+                    oe-args))))
 
         ((log l)
          (if (null? oe-args)
