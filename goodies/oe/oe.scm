@@ -20,22 +20,32 @@
              (blocks '())
              (context '()))
     (if (null? lines)
-        (reverse (cons context blocks))
+        (butlast (reverse (cons context blocks)))
         (let ((line (car lines)))
           (if cur-var
-              (if (string-prefix? (string-append "# $") line)
-                  ;; The end of a context block
-                  (loop lines
-                        #f
-                        (cons (cons (string->symbol cur-var)
-                                    (reverse context))
-                              blocks)
-                        '())
-                  ;; The body of a context block
-                  (loop (cdr lines)
-                        cur-var
-                        blocks
-                        (cons line context)))
+              (cond ((string-prefix? (conc cur-var "=") line)
+                     ;; The end of a context block
+                     (loop (cdr lines)
+                           #f
+                           (cons (append (list (string->symbol cur-var))
+                                         (reverse context)
+                                         (list line))
+                                 blocks)
+                           '()))
+                    ((string-prefix? (string-append "# $") line)
+                     ;; The start of the _next_ context block
+                     (loop lines
+                           #f
+                           (cons (cons (string->symbol cur-var)
+                                       (reverse context))
+                                 blocks)
+                           '()))
+                    (else
+                     ;; The body of a context block
+                     (loop (cdr lines)
+                           cur-var
+                           blocks
+                           (cons line context))))
               ;; No variable context block being processed
               (if (string-prefix? (string-append "# $") line)
                   ;; The start of a context block
