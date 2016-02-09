@@ -472,7 +472,7 @@ run
                                          (get-oe-source-directories))
                                         ((sysroot-find sysroot-edit sysroot-view sf se sv)
                                          (get-oe-sysroots-directory))))
-                (cdr args)))
+                oe-args))
 
         ((pkg-find pkg-view pkg-info pkg-scripts pkg-extract
           pf pv pi ps px)
@@ -484,7 +484,7 @@ run
                                    ((pkg-scripts ps) package-scripts)
                                    ((pkg-extract px) package-extract))
                                  dir: (get-oe-packages-directories))
-                (cdr args)))
+                oe-args))
 
         ((log l)
          (if (null? oe-args)
