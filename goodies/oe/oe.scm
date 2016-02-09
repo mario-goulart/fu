@@ -86,12 +86,15 @@
 
 (define (populate-bitbake-data! #!optional recipe)
   (unless +bitbake-data+
-    (let ((raw-data-file (create-temporary-file)))
+    (let ((raw-data-file (create-temporary-file))
+          (anchor (current-directory)))
       (handle-exceptions exn
         (begin
           (delete-file* raw-data-file)
           (exit 1))
-        (system* (sprintf "bitbake -e ~a > ~a" (or recipe "") raw-data-file)))
+        (change-directory +build-dir+)
+        (system* (sprintf "bitbake -e ~a > ~a" (or recipe "") raw-data-file))
+        (change-directory anchor))
       (let ((data (parse-bitbake-output raw-data-file)))
         (delete-file raw-data-file)
         (set! +bitbake-data+ data)))))
