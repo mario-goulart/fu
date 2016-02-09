@@ -1,5 +1,6 @@
 ;; TODO: parse local.conf to expand MACHINE and DISTRO
 ;; TODO: x: -e to indicate an expression.  Example: oe x -e '${AVAR}/${BVAR}'
+;; find-variable: actions menu: documentation, expansion
 
 (use data-structures extras files ports posix srfi-1 srfi-13 utils)
 
@@ -361,6 +362,17 @@
                   identity)))
                (for-each print options))))))
 
+(define (find-oe-variable str-pattern)
+  (let* ((vars (map (compose symbol->string car) +bitbake-data+))
+         (pattern (prepare-pattern str-pattern #f))
+         (results (filter (lambda (var)
+                            (irregex-search pattern var))
+                          vars)))
+    (if (null? results)
+        (exit 1))
+    (let ((choice (prompt results (format-matches pattern))))
+      (show-variable-expansions (string->symbol (list-ref results choice))))))
+
 (define oe-usage
   "Usage: oe <command> <options>
 
@@ -520,6 +532,12 @@ run
                         ((grep-view gv) (fu-viewer))
                         ((grep-edit ge) (fu-editor)))
                       oe-args))
+
+        ((find-variable fv)
+         (let ((recipe (and (not (null? (cdr oe-args)))
+                            (cadr oe-args))))
+           (populate-bitbake-data! recipe)
+           (find-oe-variable (car oe-args))))
 
         ((d)
          (die! "FIXME"))
