@@ -376,7 +376,43 @@
     (let ((choice (prompt results (format-matches pattern))))
       (show-variable-expansions (string->symbol (list-ref results choice))))))
 
-(define (find-log-files run-cmd? recipe task)
+(define (format-command-lines file)
+  (let ((port (open-input-file file))
+        (prev #f))
+    (let loop ((command-line-counter 0))
+      (let ((line (read-line port)))
+        (unless (eof-object? line)
+          (let ((tokens (string-split line)))
+            (if (> (length tokens) 0)
+                (let ((first-token (car tokens))
+                      (dashes (string-* "-" 15)))
+                  (set! prev #f)
+                  (if (any (lambda (suffix)
+                             (string-suffix? suffix first-token))
+                           '("gcc" "g++" "xgcc" "clang" "clang++" "javac"))
+                      (let ((lines (list first-token)))
+                        (printf "~a[ command line ~a ]~a\n"
+                                dashes command-line-counter dashes)
+                        (for-each
+                         (lambda (token)
+                           (if (member prev '("-o" "-isystem" "-include"))
+                               (set-car! lines
+                                         (string-append (car lines) " " token))
+                               (set! lines (cons token lines)))
+                           (set! prev token))
+                         (cdr tokens))
+                        (let ((rev-lines (reverse lines)))
+                          (print (car rev-lines))
+                          (for-each (lambda (line)
+                                      (print "  " line))
+                                    (cdr rev-lines)))
+                        (loop (fx+ 1 command-line-counter)))
+                      (print line)))
+                (print line))
+            (loop command-line-counter)))))
+    (close-input-port port)))
+
+(define (find-log-files run-cmd? recipe task format-command-lines?)
   (let* ((log-type (if run-cmd? "run" "log"))
          (task-pattern
           (prepare-pattern
@@ -389,7 +425,17 @@
              (fu-find-files task-pattern
                             dir: (make-pathname (get-var 'WORKDIR) "temp")))
      task-pattern
-     (fu-viewer)
+     (lambda (file)
+       (if format-command-lines?
+           ;; with-output-to-pager doesn't seem to be handling SIGPIPE
+           ;; as it should, so here an ugly hack goes.
+           (handle-exceptions exn
+             'ignore
+             (with-output-to-pager
+              (lambda ()
+                (format-command-lines file))))
+           ((fu-viewer) file))
+       (print-selected-file file))
      pre-formatter: pathname-strip-directory)))
 
 (define oe-usage
@@ -437,8 +483,7 @@ pkg-info
 pkg-scripts
 pkg-extract
 
-log
-
+log [-f]
 run
 ")
 
@@ -520,16 +565,22 @@ run
                     oe-args))))
 
         ((log run l r)
-         (if (null? oe-args)
-             (die! "Missing recipe.  Aborting.")
-             (let* ((non-options (remove (lambda (arg)
-                                           (string-prefix? "-" arg))
-                                         oe-args))
-                    (recipe (string->symbol (car non-options)))
-                    (task (and (not (null? (cdr non-options)))
-                               (cadr non-options))))
-               (populate-bitbake-data! recipe)
-               (find-log-files (memq cmd '(run r)) recipe task))))
+         (let ((run-cmd? (memq cmd '(run r))))
+           (if (null? oe-args)
+               (die! "Missing recipe.  Aborting.")
+               (let* ((non-options (remove (lambda (arg)
+                                             (string-prefix? "-" arg))
+                                           oe-args))
+                      (recipe (string->symbol (car non-options)))
+                      (task (and (not (null? (cdr non-options)))
+                                 (cadr non-options)))
+                      (format-command-lines? (and (not run-cmd?)
+                                                  (member "-f" oe-args))))
+                 (populate-bitbake-data! recipe)
+                 (find-log-files run-cmd?
+                                 recipe
+                                 task
+                                 format-command-lines?)))))
 
         ((grep-view grep-edit gv ge)
          (populate-bitbake-data-from-cache!)
