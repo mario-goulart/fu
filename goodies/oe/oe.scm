@@ -429,13 +429,14 @@
        (if format-command-lines?
            ;; with-output-to-pager doesn't seem to be handling SIGPIPE
            ;; as it should, so here an ugly hack goes.
-           (handle-exceptions exn
-             'ignore
-             (with-output-to-pager
-              (lambda ()
-                (format-command-lines file))))
-           ((fu-viewer) file))
-       (print-selected-file file))
+           (begin
+             (handle-exceptions exn
+               'ignore
+               (with-output-to-pager
+                (lambda ()
+                  (format-command-lines file))))
+             (print-selected-file file))
+           ((fu-viewer) file)))
      pre-formatter: pathname-strip-directory)))
 
 (define oe-usage
