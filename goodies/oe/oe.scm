@@ -376,6 +376,22 @@
     (let ((choice (prompt results (format-matches pattern))))
       (show-variable-expansions (string->symbol (list-ref results choice))))))
 
+(define (find-log-files run-cmd? recipe task)
+  (let* ((log-type (if run-cmd? "run" "log"))
+         (task-pattern
+          (prepare-pattern
+           (if task
+               (string-append log-type "\\.do_" task)
+               (string-append log-type "\\..*"))
+           #f)))
+    (maybe-prompt-files
+     (filter symbolic-link?
+             (fu-find-files task-pattern
+                            dir: (make-pathname (get-var 'WORKDIR) "temp")))
+     task-pattern
+     (fu-viewer)
+     pre-formatter: pathname-strip-directory)))
+
 (define oe-usage
   "Usage: oe <command> <options>
 
@@ -503,33 +519,17 @@ run
                                      dir: pkg-dirs)
                     oe-args))))
 
-        ((log l)
+        ((log run l r)
          (if (null? oe-args)
              (die! "Missing recipe.  Aborting.")
              (let* ((non-options (remove (lambda (arg)
                                            (string-prefix? "-" arg))
                                          oe-args))
                     (recipe (string->symbol (car non-options)))
-                    (log (and (not (null? (cdr non-options)))
-                              (cadr non-options))))
+                    (task (and (not (null? (cdr non-options)))
+                               (cadr non-options))))
                (populate-bitbake-data! recipe)
-               (let ((log-pattern
-                      (prepare-pattern
-                       (if log
-                           (string-append "log\\.do_" log)
-                           "log\\..*")
-                       #f)))
-                 (maybe-prompt-files
-                  (filter symbolic-link?
-                          (fu-find-files log-pattern
-                                         dir: (make-pathname (get-var 'WORKDIR)
-                                                             "temp")))
-                  (if log log-pattern ".*")
-                  (fu-viewer)
-                  pre-formatter: pathname-strip-directory)))))
-
-        ((run r)
-         (die! "FIXME"))
+               (find-log-files (memq cmd '(run r)) recipe task))))
 
         ((grep-view grep-edit gv ge)
          (populate-bitbake-data-from-cache!)
