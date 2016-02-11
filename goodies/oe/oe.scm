@@ -104,7 +104,7 @@
           (delete-file* raw-data-file)
           (exit 1))
         (change-directory +build-dir+)
-        (system* (sprintf "bitbake -e ~a > ~a" (or recipe "") raw-data-file))
+        (system* "bitbake -e ~a > ~a" (or recipe "") raw-data-file)
         (change-directory anchor))
       (let ((data (parse-bitbake-output raw-data-file)))
         (delete-file raw-data-file)
@@ -200,7 +200,7 @@
 
 (define (run-if-program-available program fmt . args)
   (if (program-available? program)
-      (system* (apply sprintf (cons fmt args)))
+      (apply system* (cons fmt args))
       (die! "ERROR: This operation requires the '~a' program to be installed."
             program)))
 
@@ -208,7 +208,7 @@
   (let ((ext (string->symbol (pathname-extension package))))
     (case ext
       ((deb ipk)
-       (system* (sprintf "ar p ~a data.tar.gz | tar tvzf -" package)))
+       (system* "ar p ~a data.tar.gz | tar tvzf -" package))
       ((rpm)
        (run-if-program-available "rpm" "rpm -qlvp ~a" package))
       (else (die! "ERROR: unsupported package file extension: ~a" ext)))))
@@ -217,8 +217,7 @@
   (let ((ext (string->symbol (pathname-extension package))))
     (case ext
       ((deb ipk)
-       (system* (sprintf "ar p ~a control.tar.gz | tar xzf - ./control -O"
-                         package)))
+       (system* "ar p ~a control.tar.gz | tar xzf - ./control -O" package))
       ((rpm)
        (run-if-program-available "rpm" "rpm -qip ~a" package))
       (else (die! "ERROR: unsupported package file extension: ~a" ext)))))
@@ -227,7 +226,7 @@
   (let ((ext (string->symbol (pathname-extension package))))
     (case ext
       ((deb ipk)
-       (system* (sprintf "ar p ~a control.tar.gz | tar tzf -" package)))
+       (system* "ar p ~a control.tar.gz | tar tzf -" package))
       (else (die! "ERROR: unsupported package file extension: ~a" ext)))))
 
 (define (package-extract package)
