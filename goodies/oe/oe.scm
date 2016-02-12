@@ -418,25 +418,27 @@
            (if task
                (string-append log-type "\\.do_" task)
                (string-append log-type "\\..*"))
-           #f)))
-    (maybe-prompt-files
-     (filter symbolic-link?
-             (fu-find-files task-pattern
-                            dir: (make-pathname (get-var 'WORKDIR) "temp")))
-     task-pattern
-     (lambda (file)
-       (if format-command-lines?
-           ;; with-output-to-pager doesn't seem to be handling SIGPIPE
-           ;; as it should, so here an ugly hack goes.
-           (begin
-             (handle-exceptions exn
-               'ignore
-               (with-output-to-pager
-                (lambda ()
-                  (format-command-lines file))))
-             (print-selected-file file))
-           ((fu-viewer) file)))
-     pre-formatter: pathname-strip-directory)))
+           #f))
+         (recipe-temp-dir (make-pathname (get-var 'WORKDIR) "temp")))
+    (when (directory-exists? recipe-temp-dir)
+      (maybe-prompt-files
+       (filter symbolic-link?
+               (fu-find-files task-pattern
+                              dir: recipe-temp-dir))
+       task-pattern
+       (lambda (file)
+         (if format-command-lines?
+             ;; with-output-to-pager doesn't seem to be handling SIGPIPE
+             ;; as it should, so here an ugly hack goes.
+             (begin
+               (handle-exceptions exn
+                 'ignore
+                 (with-output-to-pager
+                  (lambda ()
+                    (format-command-lines file replace-variables?))))
+               (print-selected-file file))
+             ((fu-viewer) file)))
+       pre-formatter: pathname-strip-directory))))
 
 (define oe-usage
   "Usage: oe <command> <options>
