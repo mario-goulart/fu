@@ -375,9 +375,35 @@
     (let ((choice (prompt results (format-matches pattern))))
       (show-variable-expansions (string->symbol (list-ref results choice))))))
 
-(define (format-command-lines file)
+(define maybe-replace-variables
+  (let ((vars/vals #f))
+    (lambda (line)
+      (unless vars/vals
+        (set! vars/vals
+          ;; Warning: the order of the variables below is important!
+          ;; Beware of unintended substring replacements.
+          (append (map-in-order (lambda (var)
+                                  (cons var (get-var var)))
+                                '(B S WORKDIR TMPDIR))
+                  (list (cons 'HOME (get-environment-variable "HOME"))))))
+      (let loop ((vars/vals vars/vals)
+                 (line line))
+        (if (null? vars/vals)
+            line
+            (let ((var/val (car vars/vals)))
+              (loop (cdr vars/vals)
+                    (string-translate* line
+                                       `((,(cdr var/val) .
+                                          ,(string-append "$" (symbol->string
+                                                               (car var/val)))))))))))))
+
+(define (format-command-lines file replace-variables?)
   (let ((port (open-input-file file))
-        (prev #f))
+        (prev #f)
+        (show-line (lambda (line)
+                     (if replace-variables?
+                         (print (maybe-replace-variables line))
+                         (print line)))))
     (let loop ((command-line-counter 0))
       (let ((line (read-line port)))
         (unless (eof-object? line)
@@ -401,17 +427,17 @@
                            (set! prev token))
                          (cdr tokens))
                         (let ((rev-lines (reverse lines)))
-                          (print (car rev-lines))
+                          (show-line (car rev-lines))
                           (for-each (lambda (line)
-                                      (print "  " line))
+                                      (show-line (string-append "  " line)))
                                     (cdr rev-lines)))
                         (loop (fx+ 1 command-line-counter)))
-                      (print line)))
-                (print line))
+                      (show-line line)))
+                (show-line line))
             (loop command-line-counter)))))
     (close-input-port port)))
 
-(define (find-log-files run-cmd? recipe task format-command-lines?)
+(define (find-log-files run-cmd? recipe task format-command-lines? replace-variables?)
   (let* ((log-type (if run-cmd? "run" "log"))
          (task-pattern
           (prepare-pattern
@@ -577,12 +603,15 @@ run
                       (task (and (not (null? (cdr non-options)))
                                  (cadr non-options)))
                       (format-command-lines? (and (not run-cmd?)
-                                                  (member "-f" oe-args))))
+                                                  (member "-f" oe-args)))
+                      (replace-variables? (and (not run-cmd?)
+                                               (member "-r" oe-args))))
                  (populate-bitbake-data! recipe)
                  (find-log-files run-cmd?
                                  recipe
                                  task
-                                 format-command-lines?)))))
+                                 format-command-lines?
+                                 replace-variables?)))))
 
         ((grep-view grep-edit gv ge)
          (populate-bitbake-data-from-cache!)
