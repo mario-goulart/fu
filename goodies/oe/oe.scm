@@ -345,24 +345,31 @@
               (make-pathname (car option)
                              (string-drop-right ;; remove \x1b[36m
                               (car (string-split (cdr option) ":"))
-                              5))))))
+                              5)))))
+         (term? (terminal-port? (current-output-port)))
+         (colorize-layer
+          (lambda (option #!optional (interactive? #t))
+            (if (and term? interactive?)
+                (make-pathname (colorize
+                                (pathname-strip-directory (car option))
+                                'blue)
+                               (cdr option))
+                ;; In non-interactive mode, keep the full path
+                (make-pathname (car option) (cdr option))))))
     (cond ((null? options)
            (exit 1))
+          ((not action)
+           (for-each (lambda (option)
+                       (print (colorize-layer option #f)))
+                     options))
           ((null? (cdr options))
-           (action (get-filename 0)))
+           (action (colorize-layer (get-filename 0))))
           (else
-           (if (terminal-port? (current-output-port))
+           (if term?
                (action
                 (get-filename
-                 (prompt
-                  (map (lambda (o)
-                         (make-pathname (colorize
-                                         (pathname-strip-directory (car o))
-                                         'blue)
-                                        (cdr o)))
-                       options)
-                  identity)))
-               (for-each print options))))))
+                 (prompt (map colorize-layer options) identity)))
+               (for-each (compose print colorize-layer) options))))))
 
 (define (find-oe-variable str-pattern)
   (let* ((vars (map (compose symbol->string car) *bitbake-data*))
@@ -678,6 +685,9 @@ run <recipe> [<task>]
   <task> is not provided, all log files will be displayed as options for
   selection.
 
+grep [<grep options>] <pattern>
+  Short command: g. Search for <pattern> in the source directories.
+
 grep-view [<grep options>] <pattern>
   Short command: gv.  Search for <pattern> in the source directories and
   call the viewer on the selected option.
@@ -787,9 +797,10 @@ grep-edit [<grep options>] <pattern>
                                  format-command-lines?
                                  replace-variables?)))))
 
-        ((grep-view grep-edit gv ge)
+        ((grep grep-view grep-edit g gv ge)
          (populate-bitbake-data-from-cache!)
          (oe-git-grep (case cmd
+                        ((grep g) #f)
                         ((grep-view gv) (fu-viewer))
                         ((grep-edit ge) (fu-editor)))
                       oe-args))
