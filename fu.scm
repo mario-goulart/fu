@@ -371,6 +371,13 @@ EOF
 
 
 ;;;
+;;; Include goodies: this is a hack to ease building goodies into fu
+;;; (e.g., useful for static compilation of fu + goodies).  By default
+;;; it is empty.
+;;;
+(include "builtin-goodies.scm")
+
+;;;
 ;;; Usage & command line parsing
 ;;;
 
