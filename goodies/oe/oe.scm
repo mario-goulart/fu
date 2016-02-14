@@ -649,14 +649,42 @@ sysroot-edit <`sysroot-find' options> <pattern>
 doc <pattern>
   Short command: d.  Show documentation for variables matching <pattern>.
 
-pkg-find
-pkg-view
-pkg-info
-pkg-scripts
-pkg-extract
+pkg-find <pattern>
+  Short command: pf.  Find packages that match <pattern>.
 
-log [-f]
-run
+pkg-view <pattern>
+  Short command: pv.  Find packages & show their content.
+
+pkg-info <pattern>
+  Short command: pi.  Find packages & show their information data.
+
+pkg-scripts
+  Short command: ps.  Find packages & show their scripts.
+
+pkg-extract
+  Short command: px.  Find packages & extract them to the current directory.
+
+log [-f] [-r] <recipe> [<task>]
+  Short command: l.  Show log file for <task> executed for <recipe>.  If
+  <task> is not provided, all log files will be displayed as options for
+  selection.
+  -f: format command lines.  Will break compiler command line arguments into
+      individual lines, hopefully improving readability.
+  -r: replace variable values.  Will replace some values by their
+      corresponding variable, hopefully improving readability.
+
+run <recipe> [<task>]
+  Short command: r.  Show run scripts for <task> executed for <recipe>. If
+  <task> is not provided, all log files will be displayed as options for
+  selection.
+
+grep-view [<grep options>] <pattern>
+  Short command: gv.  Search for <pattern> in the source directories and
+  call the viewer on the selected option.
+
+grep-edit [<grep options>] <pattern>
+  Short command: ge.  Search for <pattern> in the source directories and
+  call the editor on the selected option.
 ")
 
 (define-command 'oe
