@@ -1,8 +1,8 @@
 ;; TODO: parse local.conf to expand MACHINE and DISTRO
 ;; TODO: x: -e to indicate an expression.  Example: oe x -e '${AVAR}/${BVAR}'
-;; find-variable: actions menu: documentation, expansion
 
 (use data-structures extras files ports posix srfi-1 srfi-13 utils)
+(use html-parser sxml-transforms)
 
 (define +build-dir+ #f)
 (define +local-conf-file+ #f)
@@ -10,9 +10,9 @@
 (define +fu-oe-data-dir+ #f)
 (define +cached-oe-data-file+ #f)
 (define +tracked-config-files+ #f)
-
 (define +cached-oe-variables+
   '(DEPLOY_DIR BBLAYERS TMPDIR PACKAGE_CLASSES))
+(define *documentation-cache-file* #f)
 
 (define (parse-bitbake-output bitbake-data-file)
   ;; Return a list of unparsed variable context blocks
@@ -371,9 +371,15 @@
                             (irregex-search pattern var))
                           vars)))
     (if (null? results)
-        (exit 1))
-    (let ((choice (prompt results (format-matches pattern))))
-      (show-variable-expansions (string->symbol (list-ref results choice))))))
+        (die! "No match.")
+        (if (terminal-port? (current-output-port))
+            (let* ((var-choice (prompt results (format-matches pattern)))
+                   (variable (string->symbol (list-ref results var-choice)))
+                   (action-choice (prompt '("Expand" "Documentation") identity)))
+              (if (zero? action-choice)
+                  (show-variable-expansions variable)
+                  (show-variable-documentation variable)))
+            (for-each print results)))))
 
 (define maybe-replace-variables
   (let ((vars/vals #f))
@@ -466,6 +472,141 @@
              ((fu-viewer) file)))
        pre-formatter: pathname-strip-directory))))
 
+;;; Documentation stuff
+(define oe-documentation-uri
+  (make-parameter
+   "https://git.yoctoproject.org/cgit/cgit.cgi/yocto-docs/plain/documentation/ref-manual/ref-variables.xml"))
+
+(define oe-documentation-validity
+  (make-parameter (* 24 7 60 60))) ;; 1 week
+
+(define yocto-doc-rules
+  (let ((ignore (lambda args '()))
+        (return-body (lambda (tag . args) args)))
+    `((*COMMENT* . ,ignore)
+      (glossentry . ,(lambda (tag . args)
+                       (sxml->html ;; from html-parser
+                        `(html
+                          (body ,args)))))
+      (glossterm . ,(lambda (tag . args) `(h1 ,args)))
+      (glossdef . ,return-body)
+      (para . ,(lambda (tag . args) `(p ,args)))
+      (itemizedlist . ,(lambda (tag . args) `(p (ul ,args))))
+      (note . ,(lambda (tag . args) `(blockquote "WARNING: " ,args)))
+      (listitem . ,(lambda (tag . args) `(li ,args)))
+      (link . ,return-body)
+      (ulink . ,return-body)
+      (linkend . ,return-body)
+      (replaceable . ,(lambda (tag arg) `(i ,arg)))
+      (literallayout . ,(lambda (tag . args) `(blockquote ,args)))
+      (filename . ,(lambda (tag . f) f))
+      (class . ,ignore)
+      (role . ,ignore)
+      (info . ,ignore)
+      (id . ,ignore)
+      (title . ,ignore)
+      (@ . ,ignore)
+      (*text* . ,(lambda (tag . text) text))
+      (*default . ,identity)
+      )))
+
+(define (get-glossentries sxml)
+  (let loop ((sxml sxml))
+    (if (null? sxml)
+        '()
+        (let ((form (car sxml)))
+          (if (pair? form)
+              (cond ((memq (car form) '(chapter glossary))
+                     (get-glossentries (cdr form)))
+                    ((eq? (car form) 'glossdiv)
+                     (append (get-glossentries (cdr form))
+                             (get-glossentries (cdr sxml))))
+                    ((eq? (car form) 'glossentry)
+                     (cons form (loop (cdr sxml))))
+                    (else (loop (cdr sxml))))
+              (loop (cdr sxml)))))))
+
+(define (get-glossentry-term glossentry)
+  (let loop ((forms (cdr glossentry)))
+    (if (null? forms)
+        'unknown-glossterm
+        (let ((form (car forms)))
+          (if (and (pair? form) (eq? (car form) 'glossterm))
+              (string->symbol (cadr form))
+              (loop (cdr forms)))))))
+
+(define (xml->sexp-glossentries xml-port)
+  (let ((sxml (cddr (html->sxml xml-port))))
+    (map (lambda (glossentry)
+           (cons (get-glossentry-term glossentry)
+                 glossentry))
+         (get-glossentries sxml))))
+
+(define (maybe-update-documentation!)
+  (define (update-documentation!)
+    (print "Updating documentation data...")
+    (let* ((p (open-input-pipe (sprintf "wget -q -O - ~A 2>&1"
+                                        (oe-documentation-uri))))
+           (output (read-all p))
+           (exit-status (arithmetic-shift (close-input-pipe p) -8)))
+      (with-output-to-file "test.out" (cut print output))
+      (if (zero? exit-status)
+          (let ((glossentries
+                 (call-with-input-string output xml->sexp-glossentries)))
+            (with-output-to-file *documentation-cache-file*
+              (lambda ()
+                (pp glossentries))))
+          (error 'maybe-update-documentation!
+                 "wget error.  Exit code:" exit-status))))
+  (if (file-exists? *documentation-cache-file*)
+      (let ((cache-last-modified
+             (vector-ref (file-stat *documentation-cache-file*) 8))
+            (now (current-seconds)))
+        (when (< cache-last-modified (- now (oe-documentation-validity)))
+          (update-documentation!)))
+      (update-documentation!)))
+
+(define get-variables-documentation
+  (let ((doc #f))
+    (lambda ()
+      (unless doc
+        (maybe-update-documentation!)
+        (set! doc (with-input-from-file *documentation-cache-file* read)))
+      doc)))
+
+(define (show-variable-documentation variable)
+  (let ((glossentry (alist-ref variable (get-variables-documentation)))
+        (rules
+         (append
+          yocto-doc-rules
+          universal-conversion-rules*)))
+    (if glossentry
+        (with-output-to-pipe (sprintf "lynx -stdin -dump | ~a" (fu-pager))
+          (lambda ()
+            (SRV:send-reply (pre-post-order* glossentry rules))))
+        (die! "Could not find documentation for ~a" variable))))
+
+(define (variable-documentation str-pattern)
+  (unless (program-available? "wget")
+    (die! "This command requires wget, but it doesn't seem to be available."))
+  (unless (program-available? "lynx")
+    (die! "This command requires lynx, but it doesn't seem to be available."))
+  (let* ((vars (map (compose symbol->string car) (get-variables-documentation)))
+         (pattern (prepare-pattern str-pattern #f))
+         (results (filter (lambda (var)
+                            (irregex-search pattern var))
+                          vars)))
+    (cond ((null? results)
+           (die! "No variable matches ~a" str-pattern))
+          ((null? (cdr results))
+           (show-variable-documentation (string->symbol (car results))))
+          (else
+           (if (terminal-port? (current-output-port))
+               (let* ((choice (prompt results (format-matches pattern)))
+                      (variable (string->symbol (list-ref results choice))))
+                 (show-variable-documentation variable))
+               (for-each print results))))))
+
 (define oe-usage
   "Usage: oe <command> <options>
 
@@ -505,6 +646,9 @@ sysroot-edit <`sysroot-find' options> <pattern>
   Short command: se.  Similar to `edit', but instead of searching for files
   in the sources directory, search in the sysroot directories.
 
+doc <pattern>
+  Short command: d.  Show documentation for variables matching <pattern>.
+
 pkg-find
 pkg-view
 pkg-info
@@ -535,7 +679,9 @@ run
         (filter (lambda (file)
                   (file-exists? (make-pathname (list +build-dir+ "conf")
                                                file)))
-                '("local.conf" "bblayers.conf" "site.conf"))))
+                '("local.conf" "bblayers.conf" "site.conf")))
+      (set! *documentation-cache-file*
+        (make-pathname +fu-oe-data-dir+ "cached-documentation.scm")))
 
     (create-directory +fu-oe-data-dir+ 'recursively)
     (maybe-store-basic-oe-data!)
@@ -626,7 +772,9 @@ run
            (populate-bitbake-data! recipe)
            (find-oe-variable (car oe-args))))
 
-        ((d)
-         (die! "FIXME"))
+        ((doc d)
+         (if (null? oe-args)
+             (die! "Missing variable.")
+             (variable-documentation (car oe-args))))
 
         (else (die! "Unknown command: ~a" cmd))))))
