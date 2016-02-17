@@ -704,6 +704,10 @@ grep-edit [<grep options>] <pattern>
     (when (null? args)
       (die! oe-usage))
 
+    (when (member (car args) '("help" "h"))
+      (print oe-usage)
+      (exit))
+
     (let ((builddir (get-environment-variable "BUILDDIR")))
       (unless builddir
         (die! "The build environment is not set.  Aborting."))
@@ -726,11 +730,8 @@ grep-edit [<grep options>] <pattern>
 
     (let ((cmd (string->symbol (car args)))
           (oe-args (cdr args)))
-      (case cmd
-        ((help h)
-         (print oe-usage)
-         (exit))
 
+      (case cmd
         ((expand x)
          (if (null? oe-args)
              (die! "Missing variable.  Aborting.")
