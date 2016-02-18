@@ -4,14 +4,22 @@
 
 set -ex
 
-chicken-install -r html-parser >/dev/null
-chicken-install -r sxml-transforms >/dev/null
+if [ ! -e fu.scm ]; then
+    echo "This doesn't seem to be fu's source directory." >&2
+    exit 1
+fi
 
-csc -unit html-parser -emit-import-library html-parser -c html-parser/html-parser.scm -o html-parser.o
+if [ ! -e html-parser.o ]; then
+    chicken-install -r html-parser >/dev/null
+    csc -O3 -unit html-parser -emit-import-library html-parser -c html-parser/html-parser.scm -o html-parser.o
+fi
 
-cd sxml-transforms
-csc -unit sxml-transforms -emit-import-library sxml-transforms -c chicken/sxml-transforms.scm -o ../sxml-transforms.o
-cd ..
+if [ ! -e sxml-transforms.o ]; then
+    chicken-install -r sxml-transforms >/dev/null
+    cd sxml-transforms
+    csc -O3 -unit sxml-transforms -emit-import-library sxml-transforms -c chicken/sxml-transforms.scm -o ../sxml-transforms.o
+    cd ..
+fi
 
 cat <<EOF > builtin-goodies.scm
 (include "$HOME/src/git/configs/goodies/oe/oe.scm")
