@@ -264,6 +264,7 @@
 (define (fu-find/operate op #!key (prompt? #t)
                                   (non-dirs-only? #t)
                                   (dir ".")
+                                  (interactive-action? #t)
                                   multiple-choices?)
   (lambda args
     (let* ((parsed-args
@@ -310,9 +311,13 @@
       (if (and prompt? terminal?)
           (maybe-prompt-files files pattern op
                               multiple-choices?: multiple-choices?)
-          (let ((op (if terminal? op print)))
+          (let ((op (if (or terminal? (not interactive-action?)) op print)))
             (for-each (lambda (file)
-                        (op (qs ((format-matches pattern) file))))
+                        ;; If not interactive-action?, give the
+                        ;; operator the file as is.
+                        (if interactive-action?
+                            (op (qs ((format-matches pattern) file)))
+                            (op file)))
                       files))))))
 
 ;;;
