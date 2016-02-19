@@ -145,6 +145,17 @@
                                   (cons 0 final-value)))
         (die! "No such variable: ~a" var))))
 
+(define (reverse-expand str-pattern pre-expansion?)
+  (let ((pattern (irregex str-pattern)))
+    (for-each (lambda (var)
+                (let ((val ((if pre-expansion? car cdr)
+                            (parse-variable-context-block var))))
+                  (when (and val (irregex-search pattern val))
+                    (printf "~a = ~a\n"
+                            (colorize (symbol->string var) 'blue)
+                            val))))
+              (map car *bitbake-data*))))
+
 (define (get-var var)
   (with-input-from-string (cdr (parse-variable-context-block var)) read))
 
@@ -642,6 +653,12 @@ expand [-s] [-u] <variable> [<recipe>]
   the final value will be printed.  If -u is provided, the raw output of
   'bitbake -e' for the variable in question will be printed.
 
+reverse-expand [-p] <regex> [<recipe>]
+  Short command: rx.  Look for <regex> in values of variables in the BitBake
+  metadata.  In other words, given a value, find which variables hold that
+  value.  If -p is provided, search will me made in values before their
+  expansion.
+
 sysroot-find [-s] [-f] [-d <depth>] <pattern>
   Short command: sf.  Similar to `find', but instead of searching for files
   in the sources directory, search in the sysroot directories.
@@ -749,6 +766,17 @@ grep-edit [<grep options>] <pattern>
                       (for-each print (alist-ref var *bitbake-data*)))
                      (else
                       (show-variable-expansions var))))))
+
+        ((reverse-expand rx)
+         (let* ((non-options (remove (lambda (arg)
+                                       (string-prefix? "-" arg))
+                                     oe-args))
+                (recipe (and (not (null? (cdr non-options)))
+                             (cadr non-options))))
+           (when (null? non-options)
+             (die! "Missing regex."))
+           (populate-bitbake-data! recipe)
+           (reverse-expand (car non-options) (member "-p" oe-args))))
 
         ((find edit view sysroot-find sysroot-view sysroot-edit
           f e v sf se sv)
