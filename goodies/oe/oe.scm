@@ -776,6 +776,7 @@ grep-edit [<grep options>] <pattern>
                                        ((pkg-info pi) package-info)
                                        ((pkg-scripts ps) package-scripts)
                                        ((pkg-extract px) package-extract))
+                                     interactive-action?: #f
                                      dir: pkg-dirs)
                     oe-args))))
 
