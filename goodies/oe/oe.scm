@@ -364,7 +364,7 @@
                        (print (colorize-layer option #f)))
                      options))
           ((null? (cdr options))
-           (action (colorize-layer (get-filename 0))))
+           (action (get-filename 0)))
           (else
            (if term?
                (action
