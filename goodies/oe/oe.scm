@@ -761,7 +761,8 @@ grep-edit [<grep options>] <pattern>
                                         ((find edit view f e v)
                                          (get-oe-source-directories))
                                         ((sysroot-find sysroot-edit sysroot-view sf se sv)
-                                         (get-oe-sysroots-directory))))
+                                         (get-oe-sysroots-directory)))
+                                 non-dirs-only?: (not (memq cmd '(find f sysroot-find sf))))
                 oe-args))
 
         ((pkg-find pkg-view pkg-info pkg-scripts pkg-extract
