@@ -202,6 +202,7 @@
                              (except '())
                              match-full-path?
                              dotfiles?
+                             ignore-user-configured-constraints?
                              (constraint identity))
   (let ((cwd (current-directory))
         (pattern (irregex pattern))
@@ -209,7 +210,8 @@
         (files
          (find-files (or dir ".")
                      test: (lambda (f)
-                             (and ((constraints) f)
+                             (and (or ignore-user-configured-constraints?
+                                      ((constraints) f))
                                   (irregex-match pattern
                                                  (if match-full-path?
                                                      f
@@ -273,6 +275,7 @@
                                   (-f)
                                   (-.)
                                   (-e . except)
+                                  (-c)
                                   (-d . ,(require-positive-integer-or-zero '-d)))))
            (get-opt (lambda (option #!optional multiple?)
                       (if multiple?
@@ -303,6 +306,7 @@
                                     match-full-path?: full-path?
                                     except: (and except (map string->sre except))
                                     dotfiles?: (get-opt '-.)
+                                    ignore-user-configured-constraints?: (get-opt '-c)
                                     constraint: (if non-dirs-only?
                                                     (lambda (f)
                                                       (not (directory? f)))
@@ -347,7 +351,7 @@
 
   (define-command 'f
   #<<EOF
-f [-s] [-f] [-d <depth>] [<dir>] <pattern>
+f [-s] [-f] [-c] [-d <depth>] [<dir>] <pattern>
   Find files that sloppily match <pattern> (a regular expression). If
   <dir> is provided, search in it, otherwise search in the current
   directory.  Sloppily means <pattern> will be surrounded by ".*"
@@ -356,6 +360,7 @@ f [-s] [-f] [-d <depth>] [<dir>] <pattern>
     -e <except>: remove files matching <except> (not affected by -s)
     -f:          print full paths
     -d <depth>:  limit search to <depth>
+    -c:          ignore configured constraints
     -.        :  list files whose name start with "."
 EOF
   (fu-find/operate (fu-actions) non-dirs-only?: #f))
