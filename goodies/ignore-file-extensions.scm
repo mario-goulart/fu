@@ -3,4 +3,4 @@
    (conjoin (constraints)
             (lambda (path)
               (let ((ext (pathname-extension path)))
-                (member ext ignored-extensions))))))
+                (not (member ext ignored-extensions)))))))
