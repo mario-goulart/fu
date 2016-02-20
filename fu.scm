@@ -302,7 +302,7 @@
                                     depth: (get-opt '-d)
                                     match-full-path?: full-path?
                                     except: (and except (map string->sre except))
-                                    dotfiles?: (get-opt '-.')
+                                    dotfiles?: (get-opt '-.)
                                     constraint: (if non-dirs-only?
                                                     (lambda (f)
                                                       (not (directory? f)))
