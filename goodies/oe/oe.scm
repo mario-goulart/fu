@@ -713,6 +713,9 @@ grep-view [<grep options>] <pattern>
 grep-edit [<grep options>] <pattern>
   Short command: ge.  Search for <pattern> in the source directories and
   call the editor on the selected option.
+
+variable-find <pattern> [<recipe>]
+  Find variables matching <pattern>.
 ")
 
 (define-command 'oe
@@ -837,7 +840,7 @@ grep-edit [<grep options>] <pattern>
                         ((grep-edit ge) (fu-editor)))
                       oe-args))
 
-        ((find-variable fv)
+        ((variable-find vf)
          (let ((recipe (and (not (null? (cdr oe-args)))
                             (cadr oe-args))))
            (populate-bitbake-data! recipe)
