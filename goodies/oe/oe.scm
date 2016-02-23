@@ -435,7 +435,7 @@
                                           ,(string-append "$" (symbol->string
                                                                (car var/val)))))))))))))
 
-(define (format-command-lines file replace-variables?)
+(define (format-command-lines file replace-variables? break-compiler-command-lines?)
   (let ((port (open-input-file file))
         (prev #f)
         (show-line (lambda (line)
@@ -453,37 +453,41 @@
     (let loop ((command-line-counter 0))
       (let ((line (read-line port)))
         (unless (eof-object? line)
-          (let ((tokens (string-split line)))
-            (if (> (length tokens) 0)
-                (let ((first-token (car tokens))
-                      (dashes (string-* "-" 15)))
-                  (set! prev #f)
-                  (if (any (lambda (suffix)
-                             (string-suffix? suffix first-token))
-                           '("gcc" "g++" "xgcc" "clang" "clang++" "javac"))
-                      (let ((lines (list first-token)))
-                        (printf "~a[ command line ~a ]~a\n"
-                                dashes command-line-counter dashes)
-                        (for-each
-                         (lambda (token)
-                           (if (member prev '("-o" "-isystem" "-include"))
-                               (set-car! lines
-                                         (string-append (car lines) " " token))
-                               (set! lines (cons token lines)))
-                           (set! prev token))
-                         (cdr tokens))
-                        (let ((rev-lines (reverse lines)))
-                          (show-line (car rev-lines))
-                          (for-each (lambda (line)
-                                      (show-line (string-append "  " line)))
-                                    (cdr rev-lines)))
-                        (loop (fx+ 1 command-line-counter)))
-                      (show-line line)))
-                (show-line line))
-            (loop command-line-counter)))))
+          (if break-compiler-command-lines?
+              (let ((tokens (string-split line)))
+                (if (> (length tokens) 0)
+                    (let ((first-token (car tokens))
+                          (dashes (string-* "-" 15)))
+                      (set! prev #f)
+                      (if (any (lambda (suffix)
+                                 (string-suffix? suffix first-token))
+                               '("gcc" "g++" "xgcc" "clang" "clang++" "javac"))
+                          (let ((lines (list first-token)))
+                            (printf "~a[ command line ~a ]~a\n"
+                                    dashes command-line-counter dashes)
+                            (for-each
+                             (lambda (token)
+                               (if (member prev '("-o" "-isystem" "-include"))
+                                   (set-car! lines
+                                             (string-append (car lines) " " token))
+                                   (set! lines (cons token lines)))
+                               (set! prev token))
+                             (cdr tokens))
+                            (let ((rev-lines (reverse lines)))
+                              (show-line (car rev-lines))
+                              (for-each (lambda (line)
+                                          (show-line (string-append "  " line)))
+                                        (cdr rev-lines)))
+                            (loop (fx+ 1 command-line-counter)))
+                          (show-line line)))
+                    (show-line line))
+                (loop command-line-counter))
+              (begin
+                (show-line line)
+                (loop (fx+ 1 command-line-counter)))))))
     (close-input-port port)))
 
-(define (find-log-files run-cmd? recipe task format-command-lines? replace-variables?)
+(define (find-log-files run-cmd? recipe task break-compiler-command-lines? replace-variables?)
   (let* ((log-type (if run-cmd? "run" "log"))
          (task-pattern
           (prepare-pattern
@@ -499,7 +503,7 @@
                               dir: recipe-temp-dir))
        task-pattern
        (lambda (file)
-         (if format-command-lines?
+         (if (or break-compiler-command-lines? replace-variables?)
              ;; with-output-to-pager doesn't seem to be handling SIGPIPE
              ;; as it should, so here an ugly hack goes.
              (begin
@@ -507,7 +511,9 @@
                  'ignore
                  (with-output-to-pager
                   (lambda ()
-                    (format-command-lines file replace-variables?))))
+                    (format-command-lines file
+                                          replace-variables?
+                                          break-compiler-command-lines?))))
                (print-selected-file file))
              ((fu-viewer) file)))
        pre-formatter: pathname-strip-directory))))
@@ -842,7 +848,7 @@ variable-find <pattern> [<recipe>]
                       (recipe (string->symbol (car non-options)))
                       (task (and (not (null? (cdr non-options)))
                                  (cadr non-options)))
-                      (format-command-lines? (and (not run-cmd?)
+                      (break-compiler-command-lines? (and (not run-cmd?)
                                                   (member "-f" oe-args)))
                       (replace-variables? (and (not run-cmd?)
                                                (member "-r" oe-args))))
@@ -850,7 +856,7 @@ variable-find <pattern> [<recipe>]
                  (find-log-files run-cmd?
                                  recipe
                                  task
-                                 format-command-lines?
+                                 break-compiler-command-lines?
                                  replace-variables?)))))
 
         ((grep grep-view grep-edit g gv ge)
