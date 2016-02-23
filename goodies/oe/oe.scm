@@ -400,6 +400,18 @@
                   (show-variable-documentation variable)))
             (for-each print results)))))
 
+(define +variables-to-replace+
+  ;; List of varibles to replace in log files mapped to the method to
+  ;; be used to obtain their values.
+  ;
+  ;; Warning: the order of the variables below is important!
+  ;; Beware of unintended substring replacements.
+  `((B . ,get-var)
+    (S . ,get-var)
+    (WORKDIR . ,get-var)
+    (TMPDIR . ,get-var)
+    (HOME . ,(compose get-environment-variable symbol->string))))
+
 (define maybe-replace-variables
   (let ((vars/vals #f))
     (lambda (line)
@@ -407,10 +419,11 @@
         (set! vars/vals
           ;; Warning: the order of the variables below is important!
           ;; Beware of unintended substring replacements.
-          (append (map-in-order (lambda (var)
-                                  (cons var (get-var var)))
-                                '(B S WORKDIR TMPDIR))
-                  (list (cons 'HOME (get-environment-variable "HOME"))))))
+          (map-in-order (lambda (var/method)
+                          (let ((var (car var/method))
+                                (method (cdr var/method)))
+                            (cons var (method var))))
+                        +variables-to-replace+)))
       (let loop ((vars/vals vars/vals)
                  (line line))
         (if (null? vars/vals)
@@ -429,6 +442,14 @@
                      (if replace-variables?
                          (print (maybe-replace-variables line))
                          (print line)))))
+    (when replace-variables?
+      (print "==========[ Replacements made by oe ]==========")
+      (for-each (lambda (var/method)
+                  (let ((var (car var/method))
+                        (method (cdr var/method)))
+                    (print var " = " (method var))))
+                +variables-to-replace+)
+      (print (make-string 47 #\=) "\n"))
     (let loop ((command-line-counter 0))
       (let ((line (read-line port)))
         (unless (eof-object? line)
