@@ -261,7 +261,7 @@
                             ("Info"    . ,package-info)
                             ("Scripts" . ,package-scripts)
                             ("Extract" . ,package-extract))))
-      (when (terminal-port? (current-output-port))
+      (when output-is-terminal?
         (print-selected-file selection)
         (let ((option (prompt (map car labels/actions) identity)))
           ((cdr (list-ref labels/actions option)) selection))))))
@@ -335,7 +335,6 @@
 (define (oe-git-grep action args)
   (let* ((pattern (last args))
          (opts (butlast args))
-         (colorize? (terminal-port? (current-output-port)))
          (options
           (append-map
            (lambda (dir)
@@ -345,7 +344,7 @@
                   (call-with-input-pipe
                    (sprintf
                     "git --no-pager grep ~a ~a ~a"
-                    (if colorize? "--color=always" "--color=never")
+                    (if output-is-terminal? "--color=always" "--color=never")
                     (string-intersperse opts)
                     (qs pattern))
                    read-lines)))
@@ -358,10 +357,9 @@
                              (string-drop-right ;; remove \x1b[36m
                               (car (string-split (cdr option) ":"))
                               5)))))
-         (term? (terminal-port? (current-output-port)))
          (colorize-layer
           (lambda (option #!optional (interactive? #t))
-            (if (and term? interactive?)
+            (if (and output-is-terminal? interactive?)
                 (make-pathname (colorize
                                 (pathname-strip-directory (car option))
                                 'blue)
@@ -377,7 +375,7 @@
           ((null? (cdr options))
            (action (get-filename 0)))
           (else
-           (if term?
+           (if output-is-terminal?
                (action
                 (get-filename
                  (prompt (map colorize-layer options) identity)))
@@ -391,7 +389,7 @@
                           vars)))
     (if (null? results)
         (die! "No match.")
-        (if (terminal-port? (current-output-port))
+        (if output-is-terminal?
             (let* ((var-choice (prompt results (format-matches pattern)))
                    (variable (string->symbol (list-ref results var-choice)))
                    (action-choice (prompt '("Expand" "Documentation") identity)))
@@ -647,7 +645,7 @@
           ((null? (cdr results))
            (show-variable-documentation (string->symbol (car results))))
           (else
-           (if (terminal-port? (current-output-port))
+           (if output-is-terminal?
                (let* ((choice (prompt results (format-matches pattern)))
                       (variable (string->symbol (list-ref results choice))))
                  (show-variable-documentation variable))
