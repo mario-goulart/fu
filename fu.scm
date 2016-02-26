@@ -26,9 +26,7 @@
 (define match-highlighter
   (make-parameter
    (lambda (match)
-     (if output-is-terminal?
-         (colorize match 'red)
-         match))))
+     (colorize match 'red))))
 
 ;; A one-argument procedure (predicate) that will be given a file
 ;; path, and it should return #f or a truthy value.  #f specifies the
@@ -67,14 +65,16 @@
 ;;; Procedures
 
 (define (colorize text color)
-  (string-append
-   (case color
-     ((red) "\x1b[31;1m")
-     ((green) "\x1b[32;1m")
-     ((blue) "\x1b[34;1m")
-     (else ""))
-   text
-   "\x1b[0m"))
+  (if output-is-terminal?
+      (string-append
+       (case color
+         ((red) "\x1b[31;1m")
+         ((green) "\x1b[32;1m")
+         ((blue) "\x1b[34;1m")
+         (else ""))
+       text
+       "\x1b[0m")
+      text))
 
 (define (print-selected-file path)
   (print (colorize
