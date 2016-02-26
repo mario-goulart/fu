@@ -9,6 +9,8 @@
 (include "command-line.scm")
 (include "find-files.scm")
 
+(define output-is-terminal? (terminal-port? (current-output-port)))
+
 (define-record handler cmd help proc)
 
 (define (define-command cmd help proc)
@@ -23,11 +25,10 @@
 
 (define match-highlighter
   (make-parameter
-   (let ((tty? (terminal-port? (current-output-port))))
-     (lambda (match)
-       (if tty?
-           (colorize match 'red)
-           match)))))
+   (lambda (match)
+     (if output-is-terminal?
+         (colorize match 'red)
+         match))))
 
 ;; A one-argument procedure (predicate) that will be given a file
 ;; path, and it should return #f or a truthy value.  #f specifies the
@@ -56,7 +57,7 @@
 (define fu-actions
   (make-parameter
    (lambda (selection)
-     (when (terminal-port? (current-output-port))
+     (when output-is-terminal?
        (print-selected-file selection)
        (let ((option (prompt '("View" "Edit") identity)))
          (if (zero? option)
@@ -86,7 +87,7 @@
 (define (with-output-to-pager thunk)
   (cond ((get-environment-variable "EMACS")
          (thunk))  ; Don't page in emacs subprocess.
-        ((not (terminal-port? (current-output-port)))
+        ((not output-is-terminal?)
          (thunk))  ; Don't page if stdout is not a TTY.
         (else
          (unless (get-environment-variable "LESS")
@@ -284,7 +285,6 @@
                                              (cdr opt)))
                                       parsed-args)
                           (alist-ref option parsed-args))))
-           (terminal? (terminal-port? (current-output-port)))
            (str-pattern/maybe-dir (check-pattern (get-opt '--)))
            (str-pattern (if (pair? str-pattern/maybe-dir)
                             (car str-pattern/maybe-dir)
@@ -312,10 +312,10 @@
                                                       (not (directory? f)))
                                                     identity)))
                    dirs)))
-      (if (and prompt? terminal?)
+      (if (and prompt? output-is-terminal?)
           (maybe-prompt-files files pattern op
                               multiple-choices?: multiple-choices?)
-          (let ((op (if (or terminal? (not interactive-action?)) op print)))
+          (let ((op (if (or output-is-terminal? (not interactive-action?)) op print)))
             (for-each (lambda (file)
                         ;; If not interactive-action?, give the
                         ;; operator the file as is.

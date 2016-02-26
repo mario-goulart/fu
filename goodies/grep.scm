@@ -1,11 +1,10 @@
 (define (git-grep action args)
   (let* ((pattern (last args))
          (opts (butlast args))
-         (colorize? (terminal-port? (current-output-port)))
          (options (call-with-input-pipe
                    (sprintf
                     "git --no-pager grep ~a ~a ~a"
-                    (if colorize? "--color=always" "--color=never")
+                    (if output-is-terminal? "--color=always" "--color=never")
                     (string-intersperse opts)
                     (qs pattern))
                    read-lines))
@@ -29,13 +28,12 @@
   (let* ((pattern (last args))
          (grep-opts (butlast args))
          (ignored-opts '("-q" "-quiet" "--silent" "-h" "--no-filename"))
-         (colorize? (terminal-port? (current-output-port)))
          (options (call-with-input-pipe
                    ;; Make filename colorization explicit here so it
                    ;; can be removed later
                    (sprintf
                     "GREP_COLORS='fn=35' grep -r --with-filename ~a ~a ~a *"
-                    (if colorize? "--color=always" "--color=never")
+                    (if output-is-terminal? "--color=always" "--color=never")
                     (string-intersperse
                      (remove (lambda (opt)
                                (member opt ignored-opts))
