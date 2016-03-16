@@ -22,7 +22,7 @@ if [ ! -e sxml-transforms.o ]; then
 fi
 
 cat <<EOF > builtin-goodies.scm
-(include "$HOME/src/git/configs/goodies/oe/oe.scm")
+(include "$HOME/src/github/fu/goodies/oe/oe.scm")
 (include "$HOME/src/github/fu/goodies/grep.scm")
 EOF
 
