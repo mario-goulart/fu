@@ -248,7 +248,7 @@
         (create-directory out-dir 'recursively))
     (case (string->symbol ext)
       ((deb ipk)
-       (system* "ar p data.tar.gz ~a | tar xzf - -C ~a" package out-dir))
+       (system* "ar p ~a data.tar.gz | tar xzf - -C ~a" package out-dir))
       ((rpm)
        (change-directory out-dir)
        (run-if-program-available "rpm2cpio ~a | cpio -id" package))
