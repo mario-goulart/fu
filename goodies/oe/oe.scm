@@ -185,9 +185,9 @@
               (known-pkg-classes
                '(package_rpm package_ipk package_deb package_tar)))
           (set! dirs
-            (if (every (lambda (pkg-class)
-                         (memq pkg-class known-pkg-classes))
-                       pkg-classes)
+            (if (any (lambda (pkg-class)
+                       (memq pkg-class known-pkg-classes))
+                     pkg-classes)
                 (filter-map
                  (lambda (pkg-class)
                    (let ((dir (make-pathname deploy-dir
