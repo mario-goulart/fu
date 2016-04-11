@@ -542,6 +542,7 @@
       (linkend . ,return-body)
       (replaceable . ,(lambda (tag arg) `(i ,arg)))
       (literallayout . ,(lambda (tag . args) `(blockquote ,args)))
+      (emphasis . ,(lambda (tag . args) `(b ,args)))
       (filename . ,(lambda (tag . f) f))
       (class . ,ignore)
       (role . ,ignore)
