@@ -1,4 +1,3 @@
-;; TODO: parse local.conf to expand MACHINE and DISTRO
 ;; TODO: x: -e to indicate an expression.  Example: oe x -e '${AVAR}/${BVAR}'
 
 (use data-structures extras files ports posix srfi-1 srfi-13 utils)
