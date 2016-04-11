@@ -740,7 +740,7 @@ grep-edit [<grep options>] <pattern>
   call the editor on the selected option.
 
 variable-find <pattern> [<recipe>]
-  Find variables matching <pattern>.
+  Short command: vf.  Find variables matching <pattern>.
 ")
 
 (define-command 'oe
