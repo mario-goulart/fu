@@ -537,6 +537,7 @@
       (itemizedlist . ,(lambda (tag . args) `(p (ul ,args))))
       (orderedlist . ,(lambda (tag . args) `(p (ol ,args))))
       (note . ,(lambda (tag . args) `(blockquote "WARNING: " ,args)))
+      (tip . ,(lambda (tag . args) `(blockquote "TIP: " ,args)))
       (listitem . ,(lambda (tag . args) `(li ,args)))
       (link . ,return-body)
       (ulink . ,return-body)
