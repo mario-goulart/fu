@@ -535,6 +535,7 @@
       (glossdef . ,return-body)
       (para . ,(lambda (tag . args) `(p ,args)))
       (itemizedlist . ,(lambda (tag . args) `(p (ul ,args))))
+      (orderedlist . ,(lambda (tag . args) `(p (ol ,args))))
       (note . ,(lambda (tag . args) `(blockquote "WARNING: " ,args)))
       (listitem . ,(lambda (tag . args) `(li ,args)))
       (link . ,return-body)
