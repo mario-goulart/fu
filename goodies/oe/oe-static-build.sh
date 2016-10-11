@@ -22,8 +22,8 @@ if [ ! -e sxml-transforms.o ]; then
 fi
 
 cat <<EOF > builtin-goodies.scm
-(include "$HOME/src/github/fu/goodies/oe/oe.scm")
-(include "$HOME/src/github/fu/goodies/grep.scm")
+(include "goodies/oe/oe.scm")
+(include "goodies/grep.scm")
 EOF
 
 csc -uses html-parser,sxml-transforms -c fu.scm -o fu.o
