@@ -347,7 +347,7 @@
                     (string-intersperse opts)
                     (qs pattern))
                    read-lines)))
-           (string-split (get-var 'BBLAYERS))))
+           (get-oe-source-directories)))
          (get-filename
           (lambda (choice)
             (let ((option (list-ref options choice)))
