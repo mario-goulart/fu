@@ -663,6 +663,16 @@
                  (show-variable-documentation variable))
                (for-each print results))))))
 
+(define (maybe-load-fu-oe-config-file)
+  (let ((config-file (make-pathname *fu-oe-data-dir* "fu-oe.conf"))
+        (error? #f))
+    (condition-case (load config-file)
+      ((exn i/o file)
+       (debug 1 "Could not read configuration file: ~a" config-file)
+       (set! error? #t)))
+    (unless error?
+      (debug 1 "Loading configuration file: ~a" config-file))))
+
 (define oe-usage
   "Usage: oe <command> <options>
 
@@ -784,6 +794,7 @@ variable-find <pattern> [<recipe>]
         (make-pathname *fu-oe-data-dir* "cached-documentation.scm")))
 
     (create-directory *fu-oe-data-dir* 'recursively)
+    (maybe-load-fu-oe-config-file)
     (maybe-store-basic-oe-data!)
 
     (let ((cmd (string->symbol (car args)))
