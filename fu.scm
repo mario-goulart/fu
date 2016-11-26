@@ -1,5 +1,5 @@
 (import chicken scheme)
-(use data-structures extras irregex files ports srfi-1 srfi-13 utils)
+(use data-structures extras irregex files ports posix srfi-1 srfi-13 utils)
 (use (except posix find-files))
 
 ;; for command-line

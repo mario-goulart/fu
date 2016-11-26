@@ -13,6 +13,13 @@
   '(DEPLOY_DIR BBLAYERS TMPDIR PACKAGE_CLASSES))
 (define *documentation-cache-file* #f)
 
+;; Parameters that can be set in the configuration file
+(define oe-extra-layers
+  ;; List of paths (strings) to extra layers (i.e., those that are not
+  ;; in BBLAYERS)
+  (make-parameter '()))
+
+
 (define (parse-bitbake-output bitbake-data-file)
   ;; Return a list of unparsed variable context blocks
   (let loop ((lines (read-lines bitbake-data-file))
@@ -163,7 +170,10 @@
     (lambda ()
       (unless dirs
         (let ((bblayers (get-var 'BBLAYERS)))
-          (set! dirs (string-split bblayers)))
+          (set! dirs (delete-duplicates
+                      (append (string-split bblayers)
+                              (oe-extra-layers))
+                      equal?)))
         dirs))))
 
 (define get-oe-sysroots-directory
