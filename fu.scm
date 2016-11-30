@@ -346,17 +346,22 @@
 ;;;
 ;;; Config
 ;;;
+(define (maybe-load-conf conf-file)
+  (let ((error? #f))
+    (condition-case (load conf-file)
+      ((exn i/o file)
+       (debug 1 "Could not read configuration file: ~a" conf-file)
+       (set! error? #t)))
+    (unless error?
+      (debug 1 "Loading configuration file: ~a" conf-file))))
 
 (define (load-global-conf)
-  (let ((conf "/etc/fu.conf"))
-    (when (file-read-access? conf)
-      (load conf))))
+  (maybe-load-conf "/etc/fu.conf"))
 
 (define (load-user-conf)
-  (let* ((home (get-environment-variable "HOME"))
-         (conf (and home (make-pathname home ".fu.conf"))))
-    (when (and conf (file-read-access? conf))
-      (load conf))))
+  (let ((home (get-environment-variable "HOME")))
+    (when home
+      (maybe-load-conf (make-pathname home ".fu.conf")))))
 
 (define (load-conf)
   (load-global-conf)
