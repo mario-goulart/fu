@@ -325,6 +325,25 @@
                       files))))))
 
 ;;;
+;;; Debug
+;;;
+(define debug-level
+  (make-parameter
+   (or (and-let* ((level (get-environment-variable "FU_DEBUG")))
+         (or (string->number level) 0))
+       0)))
+
+(define debug-formatter
+  (make-parameter
+   (lambda (level fmt)
+     (sprintf "DEBUG[~a] ~a\n" level fmt))))
+
+(define (debug level fmt . args)
+  (when (<= level (debug-level))
+    (apply fprintf `(,(current-error-port)
+                     ,((debug-formatter) level fmt) ,@args))))
+
+;;;
 ;;; Config
 ;;;
 
