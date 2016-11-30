@@ -649,14 +649,7 @@
                (for-each print results))))))
 
 (define (maybe-load-fu-oe-config-file)
-  (let ((config-file (make-pathname *fu-oe-data-dir* "fu-oe.conf"))
-        (error? #f))
-    (condition-case (load config-file)
-      ((exn i/o file)
-       (debug 1 "Could not read configuration file: ~a" config-file)
-       (set! error? #t)))
-    (unless error?
-      (debug 1 "Loading configuration file: ~a" config-file))))
+  (maybe-load-conf (make-pathname *fu-oe-data-dir* "fu-oe.conf")))
 
 (define oe-usage
   "Usage: oe <command> <options>
