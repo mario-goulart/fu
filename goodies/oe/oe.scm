@@ -260,7 +260,7 @@
        (system* "ar p ~a data.tar.gz | tar xzf - -C ~a" package out-dir))
       ((rpm)
        (change-directory out-dir)
-       (run-if-program-available "rpm2cpio ~a | cpio -id" package))
+       (run-if-program-available "rpm2cpio" "rpm2cpio ~a | cpio -id" package))
       (else
        (die! "ERROR: unsupported package file extension: ~a" ext)))))
 
