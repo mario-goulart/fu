@@ -11,10 +11,10 @@
 (define *tracked-config-files* #f)
 
 ;; Bump whenever new variables are added to *cached-oe-variables*
-(define *cache-version* "0")
+(define *cache-version* "1")
 
 (define *cached-oe-variables*
-  '(DEPLOY_DIR BBLAYERS TMPDIR PACKAGE_CLASSES))
+  '(DEPLOY_DIR BBLAYERS TMPDIR PACKAGE_CLASSES BUILDHISTORY_DIR))
 (define *documentation-cache-file* #f)
 
 ;; Parameters that can be set in the configuration file
@@ -658,8 +658,155 @@
 (define (maybe-load-fu-oe-config-file)
   (maybe-load-conf (make-pathname *fu-oe-data-dir* "fu-oe.conf")))
 
+
+;;;
+;;; Buildhistory
+;;;
+(define (get-latest-files bh-dir #!key (depth 3))
+  ;; depth = 3 => 3 is the nesting level of latest files for packages.
+  (fu-find-files ".*/latest$"
+                 match-full-path?: #t
+                 depth: depth
+                 dir: (make-pathname bh-dir "packages")))
+
+(define (parse-latest-file latest-file)
+  (let loop ((lines (with-input-from-file latest-file read-lines)))
+    (if (null? lines)
+        '()
+        (let* ((line (car lines))
+               (tokens (string-split line "=")))
+          (if (null? tokens)
+              (loop (cdr lines))
+              (cons (cons (string->symbol (string-trim-right (car tokens)))
+                          (string-split (string-trim
+                                         (string-intersperse (cdr tokens)
+                                                             "="))))
+                    (loop (cdr lines))))))))
+
+(define (bh-pkgs recipe-pattern bh-dir)
+  (maybe-prompt-files
+   (fu-find-files recipe-pattern
+                  dir: (make-pathname bh-dir "packages")
+                  depth: 1)
+   recipe-pattern
+   (lambda (recipe-dir)
+     (for-each print
+               (or (alist-ref 'PACKAGES
+                              (parse-latest-file
+                               (make-pathname recipe-dir "latest")))
+                   '())))))
+
+(define (bh-latest pkg-pattern bh-dir)
+  (maybe-prompt-files
+   (fu-find-files pkg-pattern
+                  dir: (make-pathname bh-dir "packages")
+                  constraint: (lambda (dir)
+                                (file-exists? (make-pathname dir "latest"))))
+   pkg-pattern
+   (lambda (dir)
+     (let ((latest (make-pathname dir "latest")))
+       (print (read-all latest))
+       (print-selected-file latest)))))
+
+(define (bh-pkg-view pkg-pattern bh-dir)
+  (maybe-prompt-files
+   (fu-find-files pkg-pattern
+                  dir: (make-pathname bh-dir "packages")
+                  constraint: (lambda (dir)
+                                (file-exists?
+                                 (make-pathname dir "files-in-package.txt"))))
+   pkg-pattern
+   (lambda (dir)
+     (let ((file-list (make-pathname dir "files-in-package.txt")))
+       (print (read-all file-list))
+       (print-selected-file file-list)))))
+
+(define (bh-what-depends recipe bh-dir)
+  (for-each
+   (lambda (latest-file)
+     (let ((depends (or (alist-ref 'DEPENDS
+                                   (parse-latest-file latest-file))
+                        '())))
+       (when (member recipe depends)
+         (print (pathname-strip-directory
+                 (pathname-directory latest-file))))))
+   (get-latest-files bh-dir depth: 2)))
+
+(define (bh-what-rdepends pkg bh-dir)
+  (for-each
+   (lambda (latest-file)
+     (let ((rdepends (or (alist-ref 'RDEPENDS
+                                    (parse-latest-file latest-file))
+                         '())))
+       (when (member pkg rdepends)
+         (print (pathname-strip-directory
+                 (pathname-directory latest-file))))))
+   (get-latest-files bh-dir)))
+
+(define (bh-what-rprovides pkg bh-dir)
+  (for-each
+   (lambda (latest-file)
+     (let ((rprovides (or (alist-ref 'RPROVIDES
+                                     (parse-latest-file latest-file))
+                          '())))
+       (when (member pkg rprovides)
+         (print (pathname-strip-directory
+                 (pathname-directory latest-file))))))
+   (get-latest-files bh-dir)))
+
+
+(define (handle-bh args)
+  (when (null? args)
+    (die! bh-usage))
+
+  (let ((bh-dir (get-var 'BUILDHISTORY_DIR)))
+    (unless bh-dir
+      (die! "BUILDHISTORY_DIR is not set.  Is buildhistory enabled?"))
+
+    (let ((cmd (string->symbol (car args)))
+          (bh-args (cdr args)))
+      (when (null? bh-args)
+        (die! bh-usage))
+      (let* ((recipe/pkg (car bh-args))
+             (recipe/pkg-pattern
+              (prepare-pattern (car bh-args) #f))) ;; FIXME: implement -s
+        (case cmd
+          ((pkgs) (bh-pkgs recipe/pkg-pattern bh-dir))
+          ((latest) (bh-latest recipe/pkg-pattern bh-dir))
+          ((pkg-view pv) (bh-pkg-view recipe/pkg-pattern bh-dir))
+          ((what-depends) (bh-what-depends recipe/pkg bh-dir))
+          ((what-rdepends) (bh-what-rdepends recipe/pkg bh-dir))
+          ((what-rprovides) (bh-what-rprovides recipe/pkg bh-dir))
+          (else (dir! bh-usage)))))))
+
+(define bh-usage
+  "buildhistory <subcommand> <recipe|package>
+  Short command: bh.  Query the buildhistory directory.  Subcommands:
+
+  pkgs <recipe pattern>
+    List the packages generated by recipes matching <recipe pattern>.
+
+  latest <pkg pattern>
+    Show the content of the `latest' file for packages matching
+    <pkg pattern>.
+
+  pkg-view <pkg pattern>
+    Short command: pv.  Equivalent to `oe pv <pkg>', but using information
+    from buildhistory instead.
+
+  what-depends <recipe>
+    Show recipes that depend on recipe <recipe>.
+
+  what-rdepends <pkg>
+    Show packages that have runtime dependency on <pkg>.
+
+  what-rprovides <provider>
+    Show packages that provide <provider> in run time.
+")
+
 (define oe-usage
-  "Usage: oe <command> <options>
+  (string-append
+   "Usage: oe <command> <options>
 
 <command>s:
 
@@ -748,7 +895,10 @@ grep-edit [<grep options>] <pattern>
 
 variable-find <pattern> [<recipe>]
   Short command: vf.  Find variables matching <pattern>.
-")
+
+"
+   bh-usage))
+
 
 (define-command 'oe
   "oe <options>
@@ -884,5 +1034,9 @@ variable-find <pattern> [<recipe>]
          (if (null? oe-args)
              (die! "Missing variable.")
              (variable-documentation (car oe-args))))
+
+        ((buildhistory bh)
+         (populate-bitbake-data-from-cache!)
+         (handle-bh oe-args))
 
         (else (die! "Unknown command: ~a" cmd))))))
