@@ -163,7 +163,10 @@
               (map car *bitbake-data*))))
 
 (define (get-var var)
-  (with-input-from-string (cdr (parse-variable-context-block var)) read))
+  (let ((val (parse-variable-context-block var)))
+    (and (car val)
+         (cdr val)
+         (with-input-from-string (cdr val) read))))
 
 (define get-oe-source-directories
   (let ((dirs #f))
