@@ -9,6 +9,10 @@
 (define *fu-oe-data-dir* #f)
 (define *cached-oe-data-file* #f)
 (define *tracked-config-files* #f)
+
+;; Bump whenever new variables are added to *cached-oe-variables*
+(define *cache-version* "0")
+
 (define *cached-oe-variables*
   '(DEPLOY_DIR BBLAYERS TMPDIR PACKAGE_CLASSES))
 (define *documentation-cache-file* #f)
@@ -763,7 +767,8 @@ variable-find <pattern> [<recipe>]
       (set! *build-dir* builddir)
       (set! *local-conf-file*
         (make-pathname (list *build-dir* "conf") "local.conf"))
-      (set! *fu-oe-data-dir* (make-pathname builddir ".fu-oe"))
+      (set! *fu-oe-data-dir* (make-pathname (list builddir ".fu-oe")
+                                            *cache-version*))
       (set! *cached-oe-data-file* (make-pathname *fu-oe-data-dir*
                                                  "cached-variables.scm"))
       (set! *tracked-config-files*
