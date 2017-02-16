@@ -70,7 +70,7 @@
   ;; Returns a pair (<pre-expansion-value> . <final-value>)
   (let ((block (alist-ref var *bitbake-data*)))
     (if block
-        (let loop ((lines (alist-ref var *bitbake-data*))
+        (let loop ((lines (or (alist-ref var *bitbake-data*) '()))
                    (pre-expansion-value #f)
                    (final-value #f))
           (if (null? lines)
