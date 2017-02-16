@@ -235,8 +235,7 @@
         ((and (null? (cdr files)) (not prompt-single-result?))
          (let ((path (car files)))
            (print (format-match path pattern pre-formatter: pre-formatter))
-           (unless (directory? path)
-             (op path))))
+           (op path)))
         (else
          (let ((choice (prompt files
                                (format-matches pattern pre-formatter: pre-formatter)
