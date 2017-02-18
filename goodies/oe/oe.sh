@@ -26,7 +26,7 @@ oe () {
         fu oe
         oe_sh_usage >&2
         return 1
-    elif [ "$1" = "-h" ] || [ "$1" = "-help" ] || [ "$1" = "--help" ]; then
+    elif [ "$1" = "help" ] || [ "$1" = "-h" ] || [ "$1" = "-help" ] || [ "$1" = "--help" ]; then
         fu oe help
         oe_sh_usage
         return 0
