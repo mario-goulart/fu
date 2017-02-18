@@ -22,18 +22,22 @@ EOF
 }
 
 oe () {
+    if [ -z "$1" ]; then
+        fu oe
+        oe_sh_usage >&2
+        return 1
+    elif [ "$1" = "-h" ] || [ "$1" = "-help" ] || [ "$1" = "--help" ]; then
+        fu oe help
+        oe_sh_usage
+        return 0
+    fi
+
     if [ -z "$BUILDDIR" ]; then
         echo "BUILDDIR is not set.  Aborting." >&2
         return 1
     fi
 
-    if [ -z "$1" ]; then
-        fu oe
-        oe_sh_usage >&2
-    elif [ "$1" = "-h" ] || [ "$1" = "-help" ] || [ "$1" = "--help" ]; then
-        fu oe help
-        oe_sh_usage
-    elif [ "$1" == "cd" ]; then
+    if [ "$1" == "cd" ]; then
         local where=$2
         local recipe=$3
         local dir
