@@ -486,8 +486,9 @@
                 (loop (fx+ 1 command-line-counter)))))))
     (close-input-port port)))
 
-(define (find-log-files run-cmd? recipe task break-compiler-command-lines? replace-variables?)
-  (let* ((log-type (if run-cmd? "run" "log"))
+(define (find-recipe-task-files task-script-cmd? recipe task
+                                break-compiler-command-lines? replace-variables?)
+  (let* ((log-type (if task-script-cmd? "run" "log"))
          (task-pattern
           (prepare-pattern
            (if task
@@ -868,19 +869,19 @@ pkg-scripts
 pkg-extract
   Short command: px.  Find packages & extract them to the current directory.
 
-log [-f] [-r] <recipe> [<task>]
-  Short command: l.  Show log file for <task> executed for <recipe>.  If
-  <task> is not provided, all log files will be displayed as options for
-  selection.
+task-log [-f] [-r] <recipe> [<task>]
+  Short command: tl.  Show log file for <task> executed for <recipe>.  If
+  <task> is not provided, all log files (log.do_<task>) will be displayed
+  as options for selection.
   -f: format command lines.  Will break compiler command line arguments into
       individual lines, hopefully improving readability.
   -r: replace variable values.  Will replace some values by their
       corresponding variable, hopefully improving readability.
 
-run <recipe> [<task>]
-  Short command: r.  Show run scripts for <task> executed for <recipe>. If
-  <task> is not provided, all log files will be displayed as options for
-  selection.
+task-script <recipe> [<task>]
+  Short command: ts.  Show run.do_<task> scripts for <task> executed for
+  <recipe>.  If <task> is not provided, all script files will be displayed
+  as options for selection.
 
 grep [<grep options>] <pattern>
   Short command: g. Search for <pattern> in the source directories.
@@ -995,8 +996,8 @@ variable-find <pattern> [<recipe>]
                                      dir: pkg-dirs)
                     oe-args))))
 
-        ((log run l r)
-         (let ((run-cmd? (memq cmd '(run r))))
+        ((task-log task-script tl ts)
+         (let ((task-script-cmd? (memq cmd '(task-script ts))))
            (if (null? oe-args)
                (die! "Missing recipe.  Aborting.")
                (let* ((non-options (remove (lambda (arg)
@@ -1005,16 +1006,17 @@ variable-find <pattern> [<recipe>]
                       (recipe (string->symbol (car non-options)))
                       (task (and (not (null? (cdr non-options)))
                                  (cadr non-options)))
-                      (break-compiler-command-lines? (and (not run-cmd?)
-                                                  (member "-f" oe-args)))
-                      (replace-variables? (and (not run-cmd?)
+                      (break-compiler-command-lines?
+                       (and (not task-script-cmd?)
+                            (member "-f" oe-args)))
+                      (replace-variables? (and (not task-script-cmd?)
                                                (member "-r" oe-args))))
                  (populate-bitbake-data! recipe)
-                 (find-log-files run-cmd?
-                                 recipe
-                                 task
-                                 break-compiler-command-lines?
-                                 replace-variables?)))))
+                 (find-recipe-task-files task-script-cmd?
+                                         recipe
+                                         task
+                                         break-compiler-command-lines?
+                                         replace-variables?)))))
 
         ((grep grep-view grep-edit g gv ge)
          (populate-bitbake-data-from-cache!)
