@@ -778,7 +778,7 @@
           ((what-depends) (bh-what-depends recipe/pkg bh-dir))
           ((what-rdepends) (bh-what-rdepends recipe/pkg bh-dir))
           ((what-rprovides) (bh-what-rprovides recipe/pkg bh-dir))
-          (else (dir! bh-usage)))))))
+          (else (die! bh-usage)))))))
 
 (define bh-usage
   "buildhistory <subcommand> <recipe|package>
