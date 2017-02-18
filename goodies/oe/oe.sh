@@ -1,26 +1,47 @@
+oe_sh_usage() {
+    cat <<EOF
+cd <place>
+  Change directory to <place>.  The available <place>s are:
+
+    top
+      Change to the directory pointed by the by the BUILDDIR variable.
+      top is implicitly assumed as <place> if cd is given none.
+
+    buildhistory
+      Short: bh.  Change to the directory pointed by the BUILDHISTORY_DIR
+      variable.
+
+    deploy
+      Short: dd.  Change to the directory pointed by the DEPLOY_DIR
+      variable.
+
+    work <recipe>
+      Short: wd.  Change to the directory pointed by the WORKDIR
+      variable for recipe <recipe>.
+EOF
+}
+
 oe () {
+    if [ -z "$BUILDDIR" ]; then
+        echo "BUILDDIR is not set.  Aborting." >&2
+        return 1
+    fi
+
     if [ -z "$1" ]; then
+        fu oe
+        oe_sh_usage >&2
+    elif [ "$1" = "-h" ] || [ "$1" = "-help" ] || [ "$1" = "--help" ]; then
         fu oe help
+        oe_sh_usage
     elif [ "$1" == "cd" ]; then
         local where=$2
         local recipe=$3
-        if [ -z "$where" ]; then
-            cd $BUILDDIR
-            return 0
-        fi
         local dir
         case "$where" in
-            top)
-                if [ -z "$BUILDDIR" ]; then
-                    echo "BUILDDIR is not set" >&2
-                    return 1
-                else
-                    dir=$BUILDDIR
-                fi
-                ;;
-            bh) dir=`fu oe x -s BUILDHISTORY_DIR` ;;
-            pkg) dir=`fu oe x -s DEPLOY_DIR` ;;
-            wd)
+            ""|top) dir=$BUILDDIR ;;
+            bh|buildhistory) dir=`fu oe x -s BUILDHISTORY_DIR` ;;
+            dd|deploy) dir=`fu oe x -s DEPLOY_DIR` ;;
+            wd|work)
                 if [ -z "$3" ]; then
                     echo "Usage: oe cd wd <recipe>" >&2
                     return 1
