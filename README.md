@@ -73,7 +73,11 @@ Default value:
 Default value:
 
     (lambda (file)
-      (system (sprintf "emacs ~a" (qs file))))
+      (system (sprintf "~a ~a"
+                       (or (get-environment-variable "EDITOR")
+                           "emacs")
+                       (qs file)))
+      (print-selected-file file))
 
 #### fu-actions
 
