@@ -65,7 +65,8 @@ The following parameters can be used to configure fu:
 Default value:
 
     (lambda (file)
-      (system (sprintf "less -R ~a" (qs file))))
+      (system (sprintf "less -R ~a" (qs file)))
+      (print-selected-file file))
 
 #### fu-editor
 
