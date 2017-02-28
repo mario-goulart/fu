@@ -400,7 +400,7 @@
             (for-each print results)))))
 
 (define +variables-to-replace+
-  ;; List of varibles to replace in log files mapped to the method to
+  ;; List of variables to replace in log files mapped to the method to
   ;; be used to obtain their values.
   ;
   ;; Warning: the order of the variables below is important!
