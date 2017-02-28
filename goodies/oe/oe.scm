@@ -286,10 +286,13 @@
                             ("Info"    . ,package-info)
                             ("Scripts" . ,package-scripts)
                             ("Extract" . ,package-extract))))
-      (when output-is-terminal?
+      (cond
+       (output-is-terminal?
         (print-selected-file selection)
         (let ((option (prompt (map car labels/actions) identity)))
-          ((cdr (list-ref labels/actions option)) selection))))))
+          ((cdr (list-ref labels/actions option)) selection)))
+       (else
+        (print (qs selection)))))))
 
 (define (sha256-sum file)
   (car
