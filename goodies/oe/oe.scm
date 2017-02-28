@@ -8,10 +8,9 @@
 (define *bitbake-data* #f)
 (define *fu-oe-data-dir* #f)
 (define *cached-oe-data-file* #f)
-(define *tracked-config-files* #f)
 
 ;; Bump whenever new variables are added to *cached-oe-variables*
-(define *cache-version* "1")
+(define *cache-version* "2")
 
 (define *cached-oe-variables*
   '(DEPLOY_DIR BBLAYERS TMPDIR PACKAGE_CLASSES BUILDHISTORY_DIR))
@@ -23,6 +22,14 @@
   ;; in BBLAYERS)
   (make-parameter '()))
 
+(define tracked-config-files
+  ;; Files that, when modified, invalidate oe's cache
+  (make-parameter
+   (let ((build-dir (get-environment-variable "BUILDDIR")))
+     (filter-map (lambda (file)
+                   (file-exists? (make-pathname (list build-dir "conf")
+                                                file)))
+                 '("local.conf" "bblayers.conf" "site.conf")))))
 
 (define (parse-bitbake-output bitbake-data-file)
   ;; Return a list of unparsed variable context blocks
@@ -294,24 +301,20 @@
            (read-file (make-pathname *fu-oe-data-dir* "config-sums.scm")))
           (actual-sums
            (map (lambda (file)
-                  (cons file
-                        (sha256-sum (make-pathname (list *build-dir* "conf")
-                                                   file))))
-                *tracked-config-files*)))
+                  (cons file (sha256-sum file)))
+                (tracked-config-files))))
       (any (lambda (file)
              (not (equal? (alist-ref file actual-sums equal?)
                           (alist-ref file stored-sums equal?))))
-           *tracked-config-files*))))
+           (tracked-config-files)))))
 
 (define (write-config-sums!)
   (with-output-to-file (make-pathname *fu-oe-data-dir* "config-sums.scm")
     (lambda ()
       (for-each
        (lambda (file)
-         (pp (cons file
-                   (sha256-sum (make-pathname (list *build-dir* "conf")
-                                              file)))))
-       *tracked-config-files*))))
+         (pp (cons file (sha256-sum file))))
+       (tracked-config-files)))))
 
 (define (write-basic-oe-data!)
   (debug 2 "Writing basic OE data")
@@ -922,11 +925,6 @@ variable-find <pattern> [<recipe>]
                                             *cache-version*))
       (set! *cached-oe-data-file* (make-pathname *fu-oe-data-dir*
                                                  "cached-variables.scm"))
-      (set! *tracked-config-files*
-        (filter (lambda (file)
-                  (file-exists? (make-pathname (list *build-dir* "conf")
-                                               file)))
-                '("local.conf" "bblayers.conf" "site.conf")))
       (set! *documentation-cache-file*
         (make-pathname *fu-oe-data-dir* "cached-documentation.scm")))
 
