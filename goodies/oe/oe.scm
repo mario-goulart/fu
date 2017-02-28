@@ -26,10 +26,12 @@
   ;; Files that, when modified, invalidate oe's cache
   (make-parameter
    (let ((build-dir (get-environment-variable "BUILDDIR")))
-     (filter-map (lambda (file)
-                   (file-exists? (make-pathname (list build-dir "conf")
-                                                file)))
-                 '("local.conf" "bblayers.conf" "site.conf")))))
+     (if build-dir ;; if BUILDDIR is not set, oe will abort anyway
+         (filter-map (lambda (file)
+                       (file-exists? (make-pathname (list build-dir "conf")
+                                                    file)))
+                     '("local.conf" "bblayers.conf" "site.conf"))
+         '()))))
 
 (define (parse-bitbake-output bitbake-data-file)
   ;; Return a list of unparsed variable context blocks
