@@ -26,6 +26,7 @@ cat <<EOF > builtin-goodies.scm
 (include "goodies/grep.scm")
 EOF
 
+csc -ASM -uses html-parser,sxml-transforms -c fu.scm
 csc -uses html-parser,sxml-transforms -c fu.scm -o fu.o
 csc -static *o -o fu
 strip fu
