@@ -232,12 +232,14 @@
 
 (define (maybe-prompt-files files pattern op #!key (pre-formatter identity)
                                                    multiple-choices?
+                                                   quiet?
                                                    prompt-single-result?)
   (cond ((null? files)
          (exit 1))
         ((and (null? (cdr files)) (not prompt-single-result?))
          (let ((path (car files)))
-           (print (format-match path pattern pre-formatter: pre-formatter))
+           (unless quiet?
+             (print (format-match path pattern pre-formatter: pre-formatter)))
            (op path)))
         (else
          (let ((choice (prompt files
