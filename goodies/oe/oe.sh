@@ -36,7 +36,8 @@ oe () {
     fi
 
     if [ -z "$BUILDDIR" ]; then
-        if [ "$cmd" = "buildhistory" ] || [ "$cmd" = "bh" ]; then
+        if [ "$cmd" = "buildhistory" ] || [ "$cmd" = "bh" ] || \
+           [ "$cmd" = "buildstats" ] || [ "$cmd" = "bs" ]; then
             :
         else
             echo "BUILDDIR is not set.  Aborting." >&2

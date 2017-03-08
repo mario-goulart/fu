@@ -197,6 +197,26 @@ buildhistory <subcommand> <recipe|package>
   what-rprovides <provider>
     Show packages that provide <provider> in run time.
 
+buildstats <subcommand> <recipe> <task>
+  Short command: bs.  Query the buildstats directory.
+
+  The BUILDSTATS_DIR environment variable can be used to indicate the
+  path to the buildstatis directory.  If it is not set, oe will use
+  BUILDSTATS_BASE from the BitBake environment and will prompt you for
+  the specific buildstats directory in case more than one exists.
+
+  Subcommands:
+
+  duration <recipe> <task>
+    Show the duration of task <task> for recipe <recipe>.
+
+  tasks <recipe>
+    Show tasks executed for recipe <recipe>.
+
+  rank <criteria> [<n>]
+    Rank tasks according to <criteria> (slowest, fastest).  Show <n>
+    top items (if not provided, the top 20 items will be displayed).
+
 cd <place>
   Change directory to <place>.  The available <place>s are:
 

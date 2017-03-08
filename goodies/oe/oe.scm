@@ -10,10 +10,10 @@
 (define *cached-oe-data-file* #f)
 
 ;; Bump whenever new variables are added to *cached-oe-variables*
-(define *cache-version* "2")
+(define *cache-version* "3")
 
 (define *cached-oe-variables*
-  '(DEPLOY_DIR BBLAYERS TMPDIR PACKAGE_CLASSES BUILDHISTORY_DIR))
+  '(DEPLOY_DIR BBLAYERS TMPDIR PACKAGE_CLASSES BUILDHISTORY_DIR BUILDSTATS_BASE))
 (define *documentation-cache-file* #f)
 
 ;; Parameters that can be set in the configuration file
@@ -781,6 +781,116 @@
         ((what-rprovides) (bh-what-rprovides recipe/pkg bh-dir))
         (else (die! bh-usage))))))
 
+
+;;;
+;;; Buildstats
+;;;
+(define (bs-parse-duration file)
+  (let loop ((lines (read-lines file)))
+    (unless (null? lines)
+      (let ((line (car lines)))
+        (if (string-suffix? "seconds " line)
+            (string->number (last (butlast (string-split line))))
+            (loop (cdr lines)))))))
+
+(define (bs-tasks recipe bs-dir)
+  (let ((recipe-dir
+         (maybe-prompt-files
+          (fu-find-files (prepare-pattern recipe #f)
+                         match-full-path?: #f
+                         depth: 0
+                         dir: bs-dir)
+          (prepare-pattern recipe #f)
+          identity)))
+    (for-each print (directory recipe-dir))))
+
+
+(define (bs-duration recipe task bs-dir)
+  (let* ((task-filename (if (string-prefix? "do_" task)
+                            task
+                            (string-append "do_" task)))
+         (recipe-dir
+          (maybe-prompt-files
+           (fu-find-files (prepare-pattern recipe #f)
+                          match-full-path?: #f
+                          depth: 0
+                          dir: bs-dir)
+           (prepare-pattern recipe #f)
+           identity))
+         (task-file (make-pathname recipe-dir task-filename)))
+    (print (bs-parse-duration task-file))))
+
+(define (bs-rank criteria n-items bs-dir)
+  (when (or (not n-items)
+            (not (integer? n-items))
+            (< n-items 1))
+    (die! "<n> must be an integer greater than 0."))
+  (let* ((op
+          (case criteria
+            ((slowest) >)
+            ((fastest) <)
+            (else (die! "Invalid criteria: ~a" criteria))))
+         (durations
+          (let loop ((files (fu-find-files (prepare-pattern ".*/do_.*" #t)
+                                           depth: 1
+                                           match-full-path?: #t
+                                           dir: bs-dir)))
+            (if (null? files)
+                '()
+                (let* ((file (car files))
+                       (duration (bs-parse-duration file)))
+                  (if duration
+                      (cons (cons file duration)
+                            (loop (cdr files)))
+                      (loop (cdr files)))))))
+         (sorted-durations
+          (sort durations
+                (lambda (a b)
+                  (op (cdr a) (cdr b))))))
+    (let loop ((items (if (< (length sorted-durations) n-items)
+                          sorted-durations
+                          (take sorted-durations n-items))))
+      (unless (null? items)
+        (let* ((item (car items))
+               (file (car item))
+               (duration (cdr item))
+               (task (pathname-strip-directory file))
+               (recipe (pathname-strip-directory (pathname-directory file))))
+          (printf "~a\t~a\t~a\n" duration recipe task)
+          (loop (cdr items)))))))
+
+(define (handle-bs args bs-dir* bs-base?)
+  (let ((cmd (string->symbol (car args)))
+        (bs-args (cdr args))
+        (bs-dir (if bs-base?
+                    (maybe-prompt-files
+                     (filter directory? (glob (make-pathname bs-dir* "*")))
+                     (prepare-pattern "[0-9]+" #f)
+                     identity
+                     quiet?: #t)
+                    bs-dir*)))
+    (when (null? bs-args)
+      (die! bs-usage))
+    (let ((recipe (car bs-args)))
+      (case cmd
+        ((tasks) (bs-tasks recipe bs-dir))
+        (else
+         (case cmd
+           ((duration)
+            (when (null? (cdr bs-args))
+              (die! bs-usage))
+            (let ((task (cadr bs-args)))
+              (bs-duration recipe task bs-dir)))
+           ((rank)
+            (when (null? bs-args)
+              (die! bs-usage))
+            (let ((criteria (string->symbol (car bs-args)))
+                  (n-items (if (null? (cdr bs-args))
+                               20
+                               (string->number (cadr bs-args)))))
+              (bs-rank criteria n-items bs-dir)))
+           (else (die! bs-usage))))))))
+
 (define bh-usage
   "buildhistory <subcommand> <recipe|package>
   Short command: bh.  Query the buildhistory directory.
@@ -810,6 +920,28 @@
 
   what-rprovides <provider>
     Show packages that provide <provider> in run time.
+")
+
+(define bs-usage
+  "buildstats <subcommand> <recipe> <task>
+  Short command: bs.  Query the buildstats directory.
+
+  The BUILDSTATS_DIR environment variable can be used to indicate the
+  path to the buildstatis directory.  If it is not set, oe will use
+  BUILDSTATS_BASE from the BitBake environment and will prompt you for
+  the specific buildstats directory in case more than one exists.
+
+  Subcommands:
+
+  duration <recipe> <task>
+    Show the duration of task <task> for recipe <recipe>.
+
+  tasks <recipe>
+    Show tasks executed for recipe <recipe>.
+
+  rank <criteria> [<n>]
+    Rank tasks according to <criteria> (slowest, fastest).  Show <n>
+    top items (if not provided, the top 20 items will be displayed).
 ")
 
 (define oe-usage
@@ -903,9 +1035,11 @@ grep-edit [<grep options>] <pattern>
 
 variable-find <pattern> [<recipe>]
   Short command: vf.  Find variables matching <pattern>.
-
 "
-   bh-usage))
+   "\n"
+   bh-usage
+   "\n"
+   bs-usage))
 
 
 (define-command 'oe
@@ -922,7 +1056,8 @@ variable-find <pattern> [<recipe>]
     (let* ((builddir (get-environment-variable "BUILDDIR"))
            (cmd (string->symbol (car args)))
            (oe-args (cdr args))
-           (builddir-required? (not (memq cmd '(buildhistory bh)))))
+           (builddir-required?
+            (not (memq cmd '(buildhistory bh buildstats bs)))))
 
       (cond ((and (not builddir) builddir-required?)
              (die! "The build environment is not set.  Aborting."))
@@ -1050,5 +1185,17 @@ variable-find <pattern> [<recipe>]
            (when (and (not builddir) (not bh-dir))
              (die! "BUILDDIR and/or BUILDHISTORY_DIR must be set."))
            (handle-bh oe-args (or bh-dir (get-var 'BUILDHISTORY_DIR)))))
+
+        ((buildstats bs)
+         (let ((bs-dir (get-environment-variable "BUILDSTATS_DIR")))
+           (when (and builddir (not bs-dir))
+             (populate-bitbake-data-from-cache!))
+           (when (null? oe-args)
+             (die! bs-usage))
+           (when (and (not builddir) (not bs-dir))
+             (die! "BUILDDIR and/or BUILDSTATS_DIR must be set."))
+           (let ((bs-base (and builddir
+                               (get-var 'BUILDSTATS_BASE))))
+             (handle-bs oe-args (or bs-dir bs-base) (not bs-dir)))))
 
         (else (die! "Unknown command: ~a" cmd))))))
