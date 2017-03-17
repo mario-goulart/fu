@@ -213,9 +213,12 @@ buildstats <subcommand> <recipe> <task>
   tasks <recipe>
     Show tasks executed for recipe <recipe>.
 
-  rank <criteria> [<n>]
-    Rank tasks according to <criteria> (slowest, fastest).  Show <n>
-    top items (if not provided, the top 20 items will be displayed).
+  rank <criteria> [-n <n>] [-t <task>]
+    Rank tasks according to <criteria>.
+      <criteria>: possible values: slowest, fastest
+      -n <n>:     show <n> top items (if not provided, the top 20 items
+                  will be displayed).
+      -t <task>:  specify task filters.  Can be provided multiple times.
 
 cd <place>
   Change directory to <place>.  The available <place>s are:

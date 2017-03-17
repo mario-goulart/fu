@@ -820,18 +820,19 @@
          (task-file (make-pathname recipe-dir task-filename)))
     (print (bs-parse-duration task-file))))
 
-(define (bs-rank criteria n-items bs-dir)
-  (when (or (not n-items)
-            (not (integer? n-items))
-            (< n-items 1))
-    (die! "<n> must be an integer greater than 0."))
+(define (bs-rank criteria n-items tasks bs-dir)
   (let* ((op
           (case criteria
             ((slowest) >)
             ((fastest) <)
             (else (die! "Invalid criteria: ~a" criteria))))
          (durations
-          (let loop ((files (fu-find-files (prepare-pattern ".*/do_.*" #t)
+          (let loop ((files (fu-find-files (prepare-pattern
+                                            (if tasks
+                                                (sprintf ".*/(~a)"
+                                                         (string-intersperse tasks "|"))
+                                                ".*/do_.*")
+                                            #t)
                                            depth: 1
                                            match-full-path?: #t
                                            dir: bs-dir)))
@@ -856,7 +857,9 @@
                (duration (cdr item))
                (task (pathname-strip-directory file))
                (recipe (pathname-strip-directory (pathname-directory file))))
-          (printf "~a\t~a\t~a\n" duration recipe task)
+          (when (or (not tasks)
+                    (member task tasks))
+            (printf "~a\t~a\t~a\n" duration recipe task))
           (loop (cdr items)))))))
 
 (define (handle-bs args bs-dir* bs-base?)
@@ -882,13 +885,26 @@
             (let ((task (cadr bs-args)))
               (bs-duration recipe task bs-dir)))
            ((rank)
-            (when (null? bs-args)
-              (die! bs-usage))
-            (let ((criteria (string->symbol (car bs-args)))
-                  (n-items (if (null? (cdr bs-args))
-                               20
-                               (string->number (cadr bs-args)))))
-              (bs-rank criteria n-items bs-dir)))
+            (let* ((parsed-args
+                    (parse-command-line bs-args
+                                        `((-n . n)
+                                          (-t . tags))))
+                   (criteria (get-opt '-- parsed-args))
+                   (n-items-raw (get-opt '-n parsed-args))
+                   (n-items (if n-items-raw
+                                (string->number n-items-raw)
+                                20))
+                   (tasks (get-opt '-t parsed-args 'multiple)))
+              (when (or (not n-items)
+                        (not (integer? n-items))
+                        (< n-items 1))
+                (die! "<n> must be an integer greater than 0."))
+              (if (null? (cdr criteria))
+                  (bs-rank (string->symbol (car criteria))
+                           n-items
+                           (if (null? tasks) #f tasks)
+                           bs-dir)
+                  (die! bs-usage))))
            (else (die! bs-usage))))))))
 
 (define bh-usage
@@ -939,9 +955,12 @@
   tasks <recipe>
     Show tasks executed for recipe <recipe>.
 
-  rank <criteria> [<n>]
-    Rank tasks according to <criteria> (slowest, fastest).  Show <n>
-    top items (if not provided, the top 20 items will be displayed).
+  rank <criteria> [-n <n>] [-t <task>]
+    Rank tasks according to <criteria>.
+      <criteria>: possible values: slowest, fastest
+      -n <n>:     show <n> top items (if not provided, the top 20 items
+                  will be displayed).
+      -t <task>:  specify task filters.  Can be provided multiple times.
 ")
 
 (define oe-usage
