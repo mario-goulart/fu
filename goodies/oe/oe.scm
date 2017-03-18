@@ -948,18 +948,18 @@
          (task-file (make-pathname recipe-dir task-filename)))
     (print (bs-parse-duration task-file))))
 
-(define (bs-rank criteria n-items tasks bs-dir)
+(define (bs-rank-task-speed criteria n-items tasks bs-dir)
   (let* ((op
           (case criteria
-            ((slowest) >)
-            ((fastest) <)
+            ((slowest-tasks) >)
+            ((fastest-tasks) <)
             (else (die! "Invalid criteria: ~a" criteria))))
          (durations
           (let loop ((files (fu-find-files (prepare-pattern
                                             (if tasks
                                                 (sprintf ".*/(~a)"
                                                          (string-intersperse tasks "|"))
-                                                ".*/do_.*")
+                                                ".*/do_[^\\.]+")
                                             #t)
                                            depth: 1
                                            match-full-path?: #t
@@ -987,6 +987,41 @@
                     (member task tasks))
             (printf "~a\t~a\t~a\n" duration recipe task))
           (loop (cdr items)))))))
+
+(define (bs-rank-task-frequency n-items tasks bs-dir)
+  (let* ((all-tasks
+          (map pathname-strip-directory
+               (fu-find-files (prepare-pattern
+                               (if tasks
+                                   (sprintf ".*/(~a)"
+                                            (string-intersperse tasks "|"))
+                                   ".*/do_[^\\.]+")
+                               #t)
+                              depth: 1
+                              match-full-path?: #t
+                              dir: bs-dir)))
+         (uniq-tasks (delete-duplicates all-tasks equal?))
+         (rank (let loop ((tasks uniq-tasks))
+                 (if (null? tasks)
+                     '()
+                     (let ((task (car tasks)))
+                       (cons (cons task (count (lambda (t)
+                                                 (string=? t task))
+                                               all-tasks))
+                             (loop (cdr tasks))))))))
+    (for-each (lambda (task/count)
+                (printf "~a\t~a\n" (cdr task/count) (car task/count)))
+              (sort (safe-take rank n-items)
+                    (lambda (a b)
+                      (> (cdr a) (cdr b)))))))
+
+(define (bs-rank criteria n-items tasks bs-dir)
+  (case criteria
+    ((task-frequency)
+     (bs-rank-task-frequency n-items tasks bs-dir))
+    ((slowest-tasks fastest-tasks)
+     (bs-rank-task-speed criteria n-items tasks bs-dir))
+    (else (die! "buildstats rank: invalid criteria: ~a"))))
 
 (define (handle-bs args bs-dir* bs-base?)
   (let ((cmd (string->symbol (car args)))
@@ -1088,7 +1123,7 @@
 
   rank <criteria> [-n <n>] [-t <task>]
     Rank tasks according to <criteria>.
-      <criteria>: possible values: slowest, fastest
+      <criteria>: possible values: task-frequency, slowest-tasks, fastest-tasks
       -n <n>:     show <n> top items (if omitted, all items will be displayed).
       -t <task>:  specify task filters.  Can be provided multiple times.
 ")

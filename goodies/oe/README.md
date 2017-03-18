@@ -221,7 +221,7 @@ buildstats <subcommand> <recipe> <task>
 
   rank <criteria> [-n <n>] [-t <task>]
     Rank tasks according to <criteria>.
-      <criteria>: possible values: slowest, fastest
+      <criteria>: possible values: task-frequency, slowest-tasks, fastest-tasks
       -n <n>:     show <n> top items (if omitted, all items will be displayed).
       -t <task>:  specify task filters.  Can be provided multiple times.
 
