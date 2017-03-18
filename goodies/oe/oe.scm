@@ -33,6 +33,13 @@
                      '("local.conf" "bblayers.conf" "site.conf"))
          '()))))
 
+(define (safe-take lst n-items)
+  (if n-items
+      (if (< (length lst) n-items)
+          lst
+          (take lst n-items))
+      lst))
+
 (define (parse-bitbake-output bitbake-data-file)
   ;; Return a list of unparsed variable context blocks
   (let loop ((lines (read-lines bitbake-data-file))
@@ -848,9 +855,7 @@
           (sort durations
                 (lambda (a b)
                   (op (cdr a) (cdr b))))))
-    (let loop ((items (if (< (length sorted-durations) n-items)
-                          sorted-durations
-                          (take sorted-durations n-items))))
+    (let loop ((items (safe-take sorted-durations n-items)))
       (unless (null? items)
         (let* ((item (car items))
                (file (car item))
@@ -891,13 +896,12 @@
                                           (-t . tags))))
                    (criteria (get-opt '-- parsed-args))
                    (n-items-raw (get-opt '-n parsed-args))
-                   (n-items (if n-items-raw
-                                (string->number n-items-raw)
-                                20))
+                   (n-items (and n-items-raw
+                                 (string->number n-items-raw)))
                    (tasks (get-opt '-t parsed-args 'multiple)))
-              (when (or (not n-items)
-                        (not (integer? n-items))
-                        (< n-items 1))
+              (when (and n-items
+                         (or (not (integer? n-items))
+                             (< n-items 1)))
                 (die! "<n> must be an integer greater than 0."))
               (if (null? (cdr criteria))
                   (bs-rank (string->symbol (car criteria))
@@ -958,8 +962,7 @@
   rank <criteria> [-n <n>] [-t <task>]
     Rank tasks according to <criteria>.
       <criteria>: possible values: slowest, fastest
-      -n <n>:     show <n> top items (if not provided, the top 20 items
-                  will be displayed).
+      -n <n>:     show <n> top items (if omitted, all items will be displayed).
       -t <task>:  specify task filters.  Can be provided multiple times.
 ")
 
