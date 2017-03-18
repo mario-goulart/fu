@@ -40,6 +40,18 @@
           (take lst n-items))
       lst))
 
+(define (format-seconds seconds)
+  (let ((str (number->string seconds)))
+    (if (substring-index "." str)
+        (let* ((tokens (string-split str "."))
+               (frac (cadr tokens)))
+          (string-append (car tokens)
+                         "."
+                         (if (> (string-length frac) 2)
+                             (string-take frac 2)
+                             frac)))
+        str)))
+
 (define (parse-bitbake-output bitbake-data-file)
   ;; Return a list of unparsed variable context blocks
   (let loop ((lines (read-lines bitbake-data-file))
@@ -921,16 +933,52 @@
             (string->number (last (butlast (string-split line))))
             (loop (cdr lines)))))))
 
+(define (task-start/end task-file)
+  (let ((start #f)
+        (end #f))
+    (let loop ((lines (with-input-from-file task-file read-lines)))
+      (if (or (null? lines) (and start end))
+          (values start end)
+          (let* ((line (car lines))
+                 (tokens (string-split line)))
+            (if (null? (cdr tokens))
+                (loop (cdr lines))
+                (let ((1st-token (car tokens)))
+                  (cond ((and (not start)
+                              (string=? 1st-token "Started:"))
+                         (set! start (string->number (cadr tokens))))
+                        ((and (not end)
+                              (string=? 1st-token "Ended:"))
+                         (set! end (string->number (cadr tokens)))))
+                  (loop (cdr lines)))))))))
+
 (define (bs-tasks recipe bs-dir)
-  (let ((recipe-dir
-         (maybe-prompt-files
-          (fu-find-files (prepare-pattern recipe #f)
-                         match-full-path?: #f
-                         depth: 0
-                         dir: bs-dir)
-          (prepare-pattern recipe #f)
-          identity)))
-    (for-each print (directory recipe-dir))))
+  (let* ((recipe-dir
+          (maybe-prompt-files
+           (fu-find-files (prepare-pattern recipe #f)
+                          match-full-path?: #f
+                          depth: 0
+                          dir: bs-dir)
+           (prepare-pattern recipe #f)
+           identity))
+         (task-files (fu-find-files (prepare-pattern "do_[^\\.]+" #t)
+                                    depth: 0
+                                    dir: recipe-dir))
+         (tasks-start-end
+          (map (lambda (task-file)
+                 (let-values (((start end) (task-start/end task-file)))
+                   (list start end (pathname-strip-directory task-file))))
+               task-files))
+         (sorted-tasks
+          (sort tasks-start-end
+                (lambda (a b)
+                  (< (car a) (car b))))))
+    (for-each (lambda (task)
+                (printf "[~a] ~a (~a seconds)\n"
+                        (seconds->string (car task))
+                        (caddr task)
+                        (format-seconds (- (cadr task) (car task)))))
+              sorted-tasks)))
 
 
 (define (bs-duration recipe task bs-dir)
