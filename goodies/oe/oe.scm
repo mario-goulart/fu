@@ -678,26 +678,63 @@
 ;;;
 ;;; Buildhistory
 ;;;
-(define (get-latest-files bh-dir #!key (depth 3))
-  ;; depth = 3 => 3 is the nesting level of latest files for packages.
+(define (get-recipe-latest-files bh-dir)
   (fu-find-files ".*/latest$"
                  match-full-path?: #t
-                 depth: depth
+                 depth: 2
                  dir: (make-pathname bh-dir "packages")))
 
-(define (parse-latest-file latest-file)
-  (let loop ((lines (with-input-from-file latest-file read-lines)))
-    (if (null? lines)
+(define (get-package-latest-files bh-dir)
+  (let loop ((recipe-latest-files (get-recipe-latest-files bh-dir)))
+    (if (null? recipe-latest-files)
         '()
-        (let* ((line (car lines))
-               (tokens (string-split line "=")))
-          (if (null? tokens)
-              (loop (cdr lines))
-              (cons (cons (string->symbol (string-trim-right (car tokens)))
-                          (string-split (string-trim
-                                         (string-intersperse (cdr tokens)
-                                                             "="))))
-                    (loop (cdr lines))))))))
+        (let* ((latest-file (car recipe-latest-files))
+               (recipe-dir (pathname-directory latest-file)))
+          (append
+           (let loop-dirs ((dirs (filter-map
+                                  (lambda (f)
+                                    (let ((path (make-pathname recipe-dir f)))
+                                      (and (directory? path)
+                                           path)))
+                                  (directory recipe-dir))))
+             (if (null? dirs)
+                 '()
+                 (let ((latest (make-pathname (car dirs) "latest")))
+                   (if (file-read-access? latest)
+                       (cons latest (loop-dirs (cdr dirs)))
+                       (loop-dirs (cdr dirs))))))
+           (loop (cdr recipe-latest-files)))))))
+
+(define parse-latest-file
+  (let ((cache '()))
+    (lambda (latest-file)
+      (let ((cached (alist-ref latest-file cache equal?)))
+        (cond
+         (cached cached)
+         (else
+          (let ((data
+                 (let loop ((lines (with-input-from-file
+                                       latest-file
+                                     read-lines)))
+                   (if (null? lines)
+                       '()
+                       (let* ((line (car lines))
+                              (tokens (string-split line "=")))
+                         (if (null? tokens)
+                             (loop (cdr lines))
+                             (cons (cons (string->symbol
+                                          (string-trim-right (car tokens)))
+                                         (string-split (string-trim
+                                                        (string-intersperse
+                                                         (cdr tokens)
+                                                         "="))))
+                                   (loop (cdr lines)))))))))
+            (set! cache (cons (cons latest-file data) cache))
+            data)))))))
+
+(define (latest-file->pkg/recipe latest-file)
+  (pathname-strip-directory
+   (pathname-directory latest-file)))
 
 (define (bh-pkgs recipe-pattern bh-dir)
   (maybe-prompt-files
@@ -738,26 +775,30 @@
        (print-selected-file file-list)))))
 
 (define (bh-what-depends recipe bh-dir)
-  (for-each
+  (filter-map
    (lambda (latest-file)
      (let ((depends (or (alist-ref 'DEPENDS
                                    (parse-latest-file latest-file))
                         '())))
-       (when (member recipe depends)
-         (print (pathname-strip-directory
-                 (pathname-directory latest-file))))))
-   (get-latest-files bh-dir depth: 2)))
+       (and (member recipe depends)
+            (latest-file->pkg/recipe latest-file))))
+   (get-recipe-latest-files bh-dir)))
+
+(define (bh-show-what-depends recipe bh-dir)
+  (for-each print (bh-what-depends recipe bh-dir)))
 
 (define (bh-what-rdepends pkg bh-dir)
-  (for-each
+  (filter-map
    (lambda (latest-file)
      (let ((rdepends (or (alist-ref 'RDEPENDS
                                     (parse-latest-file latest-file))
                          '())))
-       (when (member pkg rdepends)
-         (print (pathname-strip-directory
-                 (pathname-directory latest-file))))))
-   (get-latest-files bh-dir)))
+       (and (member pkg rdepends)
+            (latest-file->pkg/recipe latest-file))))
+   (get-package-latest-files bh-dir)))
+
+(define (bh-show-what-rdepends pkg bh-dir)
+  (for-each print (bh-what-rdepends pkg bh-dir)))
 
 (define (bh-what-rprovides pkg bh-dir)
   (for-each
@@ -768,26 +809,106 @@
        (when (member pkg rprovides)
          (print (pathname-strip-directory
                  (pathname-directory latest-file))))))
-   (get-latest-files bh-dir)))
+   (get-package-latest-files bh-dir)))
 
+(define (bh-what-*depends-rank latest-files field)
+  (let* ((cache
+          (map (lambda (latest-file)
+                 (cons (latest-file->pkg/recipe latest-file)
+                       (or (alist-ref field
+                                      (parse-latest-file latest-file))
+                           '())))
+               latest-files)))
+    (let loop-pkgs/recipes ((pkgs/recipes (map car cache))
+                    (rank '()))
+      (if (null? pkgs/recipes)
+          rank
+          (let* ((pkg/recipe (car pkgs/recipes))
+                 (num-deps
+                  (let loop-cache ((cache cache)
+                                   (num-deps 0))
+                    (if (null? cache)
+                        num-deps
+                        (let ((cache-item (cdar cache)))
+                          (loop-cache (cdr cache)
+                                      (if (member pkg/recipe cache-item)
+                                          (fx+ 1 num-deps)
+                                          num-deps)))))))
+            (loop-pkgs/recipes (cdr pkgs/recipes)
+                       (cons (cons pkg/recipe num-deps)
+                             rank)))))))
+
+(define (bh-what-depends-rank bh-dir)
+  (bh-what-*depends-rank (get-recipe-latest-files bh-dir) 'DEPENDS))
+
+(define (bh-what-rdepends-rank bh-dir)
+  (bh-what-*depends-rank (get-package-latest-files bh-dir) 'RDEPENDS))
+
+(define (bh-rank criteria n-items bh-dir)
+  (define (do-rank proc #!optional items)
+    (let ((rank (sort (if items
+                          (map proc items)
+                          (proc))
+                      (lambda (a b)
+                        (> (cdr a) (cdr b))))))
+      (for-each (lambda (item)
+                  (printf "~a\t~a\n" (cdr item) (car item)))
+                (safe-take rank n-items))))
+  (case criteria
+    ((depends rdepends)
+     (let* ((depends? (eqv? criteria 'depends))
+            (all-latest-files
+             (if depends?
+                 (get-recipe-latest-files bh-dir)
+                 (get-package-latest-files bh-dir))))
+       (do-rank (lambda (latest-file)
+                  (let ((deps
+                         (or (alist-ref (if depends? 'DEPENDS 'RDEPENDS)
+                                        (parse-latest-file latest-file))
+                             '())))
+                    (cons (pathname-strip-directory
+                           (pathname-directory latest-file))
+                          (length deps))))
+                all-latest-files)))
+    ((what-depends)
+     (do-rank (lambda ()
+                (bh-what-depends-rank bh-dir))))
+    ((what-rdepends)
+     (do-rank (lambda ()
+                (bh-what-rdepends-rank bh-dir))))
+    (else (die! "buildhistory: invalid criteria: ~a" criteria))))
 
 (define (handle-bh args bh-dir)
   (let ((cmd (string->symbol (car args)))
         (bh-args (cdr args)))
     (when (null? bh-args)
       (die! bh-usage))
-    (let* ((recipe/pkg (car bh-args))
-           (recipe/pkg-pattern
-            (prepare-pattern (car bh-args) #f))) ;; FIXME: implement -s
-      (case cmd
-        ((pkgs) (bh-pkgs recipe/pkg-pattern bh-dir))
-        ((latest) (bh-latest recipe/pkg-pattern bh-dir))
-        ((pkg-view pv) (bh-pkg-view recipe/pkg-pattern bh-dir))
-        ((what-depends) (bh-what-depends recipe/pkg bh-dir))
-        ((what-rdepends) (bh-what-rdepends recipe/pkg bh-dir))
-        ((what-rprovides) (bh-what-rprovides recipe/pkg bh-dir))
-        (else (die! bh-usage))))))
-
+    (if (eqv? cmd 'rank)
+        (let* ((parsed-args
+                (parse-command-line bh-args
+                                    `((-n . n))))
+               (criteria (get-opt '-- parsed-args))
+               (n-items-raw (get-opt '-n parsed-args))
+               (n-items (and n-items-raw
+                            (string->number n-items-raw))))
+          (when (and n-items
+                     (not (integer? n-items))
+                     (< n-items 1))
+            (die! "<n> must be an integer greater than 0."))
+          (if (null? (cdr criteria))
+              (bh-rank (string->symbol (car criteria)) n-items bh-dir)
+              (die! bh-usage)))
+        (let* ((recipe/pkg (car bh-args))
+               (recipe/pkg-pattern
+                (prepare-pattern (car bh-args) #f))) ;; FIXME: implement -s
+          (case cmd
+            ((pkgs) (bh-pkgs recipe/pkg-pattern bh-dir))
+            ((latest) (bh-latest recipe/pkg-pattern bh-dir))
+            ((pkg-view pv) (bh-pkg-view recipe/pkg-pattern bh-dir))
+            ((what-depends) (bh-show-what-depends recipe/pkg bh-dir))
+            ((what-rdepends) (bh-show-what-rdepends recipe/pkg bh-dir))
+            ((what-rprovides) (bh-what-rprovides recipe/pkg bh-dir))
+            (else (die! bh-usage)))))))
 
 ;;;
 ;;; Buildstats
@@ -940,6 +1061,12 @@
 
   what-rprovides <provider>
     Show packages that provide <provider> in run time.
+
+  rank <criteria> [-n <n>]
+    Rank recipes/packages according to <criteria>.
+      <criteria>: One of depends, rdepends, what-depends, what-rdepends.
+      -n <n>:     Number of items to show. (if omitted, all items will be
+                  displayed).
 ")
 
 (define bs-usage

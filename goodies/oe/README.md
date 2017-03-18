@@ -197,6 +197,12 @@ buildhistory <subcommand> <recipe|package>
   what-rprovides <provider>
     Show packages that provide <provider> in run time.
 
+  rank <criteria> [-n <n>]
+    Rank recipes/packages according to <criteria>.
+      <criteria>: One of depends, rdepends, what-depends, what-rdepends.
+      -n <n>:     Number of items to show. (if omitted, all items will be
+                  displayed).
+
 buildstats <subcommand> <recipe> <task>
   Short command: bs.  Query the buildstats directory.
 
