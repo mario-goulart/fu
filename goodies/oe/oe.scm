@@ -823,6 +823,25 @@
                  (pathname-directory latest-file))))))
    (get-package-latest-files bh-dir)))
 
+(define (bh-what-contains pattern bh-dir)
+  (let ((compiled-pattern (irregex pattern)))
+    (for-each
+     (lambda (latest-file)
+       (let ((file-list
+              (or (alist-ref 'FILELIST
+                             (parse-latest-file latest-file))
+                  '())))
+         (for-each
+          (lambda (file)
+            (when (irregex-search compiled-pattern file)
+              (printf "~a: ~a\n"
+                      (colorize (pathname-file
+                                 (pathname-directory latest-file))
+                                'blue)
+                      (format-match file pattern))))
+          file-list)))
+     (get-package-latest-files bh-dir))))
+
 (define (bh-what-*depends-rank latest-files field)
   (let* ((cache
           (map (lambda (latest-file)
@@ -920,6 +939,7 @@
             ((what-depends) (bh-show-what-depends recipe/pkg bh-dir))
             ((what-rdepends) (bh-show-what-rdepends recipe/pkg bh-dir))
             ((what-rprovides) (bh-what-rprovides recipe/pkg bh-dir))
+            ((what-contains) (bh-what-contains recipe/pkg bh-dir))
             (else (die! bh-usage)))))))
 
 ;;;
@@ -1144,6 +1164,9 @@
 
   what-rprovides <provider>
     Show packages that provide <provider> in run time.
+
+  what-contains <path pattern>
+    Show packages that contain <path pattern>.
 
   rank <criteria> [-n <n>]
     Rank recipes/packages according to <criteria>.

@@ -197,6 +197,9 @@ buildhistory <subcommand> <recipe|package>
   what-rprovides <provider>
     Show packages that provide <provider> in run time.
 
+  what-contains <path pattern>
+    Show packages that contain <path pattern>.
+
   rank <criteria> [-n <n>]
     Rank recipes/packages according to <criteria>.
       <criteria>: One of depends, rdepends, what-depends, what-rdepends.
