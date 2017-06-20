@@ -1069,7 +1069,7 @@
      (bs-rank-task-frequency n-items tasks bs-dir))
     ((slowest-tasks fastest-tasks)
      (bs-rank-task-speed criteria n-items tasks bs-dir))
-    (else (die! "buildstats rank: invalid criteria: ~a"))))
+    (else (die! "buildstats rank: invalid criteria: ~a" criteria))))
 
 (define (handle-bs args bs-dir* bs-base?)
   (let ((cmd (string->symbol (car args)))
