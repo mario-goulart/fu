@@ -1,0 +1,15 @@
+;;; -*- scheme -*-
+
+((synopsis "A tool to find and operate on files")
+ (author "Mario Domenech Goulart")
+ (license "BSD")
+ (category tools)
+ (dependencies srfi-1 srfi-13)
+ (components
+  (program fu
+           (source-dependencies
+            "fu.scm"
+            "fu-version.scm"
+            "command-line.scm"
+            "find-files.scm"))
+  ))

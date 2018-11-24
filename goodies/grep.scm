@@ -1,3 +1,19 @@
+(cond-expand
+ (chicken-4
+  (void))
+ (chicken-5
+  (import (chicken file)
+          (chicken format)
+          (chicken io)
+          (chicken pathname)
+          (chicken port)
+          (chicken process)
+          (chicken process-context)
+          (chicken string))
+  (import srfi-1 srfi-13))
+ (else
+  (error "Unsupported CHICKEN version.")))
+
 (define (git-grep action args)
   (let* ((pattern (last args))
          (opts (butlast args))

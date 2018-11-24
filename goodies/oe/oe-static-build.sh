@@ -2,6 +2,15 @@
 
 # To be executed in the fu source directory
 
+if csi -version | grep -q '^Version 5'; then
+    chicken_version=5
+else
+    chicken_version=4
+fi
+
+# For CHICKEN 5:
+[ "$chicken_version" = 5 ] && export CHICKEN_EGG_CACHE=$PWD
+
 set -ex
 
 if [ ! -e fu.scm ]; then
@@ -26,7 +35,12 @@ cat <<EOF > builtin-goodies.scm
 (include "goodies/grep.scm")
 EOF
 
-csc -ASM -uses html-parser,sxml-transforms -c fu.scm
+if [ "$chicken_version" = 5 ]; then
+    csc -A -m fu fu.scm
+else
+    csc -ASM -uses html-parser,sxml-transforms -c fu.scm
+fi
+
 csc -uses html-parser,sxml-transforms -c fu.scm -o fu.o
 csc -static *o -o fu
 strip fu

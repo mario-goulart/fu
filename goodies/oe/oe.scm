@@ -1,7 +1,39 @@
 ;; TODO: x: -e to indicate an expression.  Example: oe x -e '${AVAR}/${BVAR}'
 
-(use data-structures extras files ports posix srfi-1 srfi-13 utils)
-(use html-parser sxml-transforms)
+(import scheme)
+(cond-expand
+ (chicken-4
+  (use data-structures extras files ports posix srfi-1 srfi-13 utils)
+  (use html-parser sxml-transforms)
+  (define read-list read-file))
+ (chicken-5
+  (import (chicken bitwise)
+          (chicken condition)
+          (chicken fixnum)
+          (chicken format)
+          (chicken io)
+          (chicken irregex)
+          (chicken file)
+          (chicken file posix)
+          (chicken pathname)
+          (chicken port)
+          (chicken pretty-print)
+          (chicken process)
+          (chicken process-context)
+          (chicken sort)
+          (chicken string)
+          (chicken time)
+          (chicken time posix))
+  (import html-parser srfi-1 srfi-13 sxml-transforms)
+  ;; C4's `read-all'-like
+  (define (read-all file/port)
+    (let ((data (if (port? file/port)
+                    (with-input-from-port file/port read-string)
+                    (with-input-from-file file/port read-string))))
+      (if (eof-object? data)
+          ""
+          data))))
+ (else (error "Unsupported CHICKEN version.")))
 
 (define *build-dir* #f)
 (define *local-conf-file* #f)
@@ -54,7 +86,7 @@
 
 (define (parse-bitbake-output bitbake-data-file)
   ;; Return a list of unparsed variable context blocks
-  (let loop ((lines (read-lines bitbake-data-file))
+  (let loop ((lines (with-input-from-file bitbake-data-file read-lines))
              (cur-var #f)
              (blocks '())
              (context '()))
@@ -131,7 +163,7 @@
         (cons #f #f))))
 
 (define (populate-bitbake-data-from-cache!)
-  (set! *bitbake-data* (read-file *cached-oe-data-file*)))
+  (set! *bitbake-data* (with-input-from-file *cached-oe-data-file* read-list)))
 
 (define (populate-bitbake-data! #!optional recipe)
   (unless *bitbake-data*
@@ -322,7 +354,9 @@
   (handle-exceptions exn
     #t
     (let ((stored-sums
-           (read-file (make-pathname *fu-oe-data-dir* "config-sums.scm")))
+           (with-input-from-file
+               (make-pathname *fu-oe-data-dir* "config-sums.scm")
+             read-list))
           (actual-sums
            (map (lambda (file)
                   (cons file (sha256-sum file)))
@@ -712,7 +746,7 @@
              (if (null? dirs)
                  '()
                  (let ((latest (make-pathname (car dirs) "latest")))
-                   (if (file-read-access? latest)
+                   (if (file-readable? latest)
                        (cons latest (loop-dirs (cdr dirs)))
                        (loop-dirs (cdr dirs))))))
            (loop (cdr recipe-latest-files)))))))
@@ -946,7 +980,7 @@
 ;;; Buildstats
 ;;;
 (define (bs-parse-duration file)
-  (let loop ((lines (read-lines file)))
+  (let loop ((lines (with-input-from-file file read-lines)))
     (unless (null? lines)
       (let ((line (car lines)))
         (if (string-suffix? "seconds " line)

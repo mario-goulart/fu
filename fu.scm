@@ -1,6 +1,28 @@
-(import chicken scheme)
-(use data-structures extras irregex files ports posix srfi-1 srfi-13 utils)
-(use (except posix find-files))
+(import scheme)
+(cond-expand
+ (chicken-4
+  (import chicken)
+  (use data-structures extras irregex files ports posix srfi-1 srfi-13 utils)
+  (use (except posix find-files))
+  (define set-environment-variable! setenv))
+ (chicken-5
+  (import (chicken condition)
+          (chicken io)
+          (chicken irregex)
+          (except (chicken file) find-files)
+          (chicken file posix)
+          (chicken fixnum)
+          (chicken format)
+          (chicken pathname)
+          (chicken platform)
+          (chicken port)
+          (chicken process)
+          (chicken process signal)
+          (chicken process-context)
+          (chicken sort)
+          (chicken string))
+  (import srfi-1))
+ (else (error "Unsupported CHICKEN version.")))
 
 ;; for command-line
 (define command-line command-line-arguments)
@@ -94,7 +116,7 @@
          (thunk))  ; Don't page if stdout is not a TTY.
         (else
          (unless (get-environment-variable "LESS")
-           (setenv "LESS" "FRXis"))  ; Default 'less' options
+           (set-environment-variable! "LESS" "FRXis"))  ; Default 'less' options
          (let ((pager (or (get-environment-variable "PAGER")
                           (fu-pager))))
            (if (or (not pager) (string=? pager "cat"))

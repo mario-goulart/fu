@@ -1,3 +1,10 @@
+(cond-expand
+ (chicken-4
+  (define file-readable? file-read-access?))
+ (chicken-5
+  (void))
+ (else (error "Unsupported CHICKEN version.")))
+
 (define (%find-files dir pred action id limit follow dot loc)
   (##sys#check-string dir loc)
   (let* ((depth 0)
@@ -20,7 +27,7 @@
                  (rest (##sys#slot fs 1)))
             (cond ((and (directory? f)
                         ;; Don't error out at unreadable directories
-                        (file-read-access? f))
+                        (file-readable? f))
                    (cond ((member filename '("." "..")) (loop dir rest r))
                          ((and (symbolic-link? f) (not follow))
                           (loop dir rest (if (pproc f) (action f r) r)))
