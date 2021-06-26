@@ -26,10 +26,11 @@
           (chicken time posix))
   (import html-parser srfi-1 srfi-13 sxml-transforms)
   ;; C4's `read-all'-like
-  (define (read-all file/port)
-    (let ((data (if (port? file/port)
-                    (with-input-from-port file/port read-string)
-                    (with-input-from-file file/port read-string))))
+  (define (read-all #!optional file/port)
+    (let* ((file/port (or file/port (current-input-port)))
+           (data (if (port? file/port)
+                     (with-input-from-port file/port read-string)
+                     (with-input-from-file file/port read-string))))
       (if (eof-object? data)
           ""
           data))))
@@ -175,7 +176,7 @@
           (delete-file* raw-data-file)
           (fprintf (current-error-port) "Error running bitbake.\n")
           (exit 1))
-        (system* "bitbake -e ~a > ~a" (or recipe "") raw-data-file))
+        (system* (sprintf "bitbake -e ~a > ~a" (or recipe "") raw-data-file)))
       (change-directory anchor)
       (let ((data (parse-bitbake-output raw-data-file)))
         (delete-file raw-data-file)
@@ -296,7 +297,7 @@
   (let ((ext (string->symbol (pathname-extension package))))
     (case ext
       ((deb ipk)
-       (system* "ar p ~a data.tar.gz | tar tvzf -" package))
+       (system* (sprintf "ar p ~a data.tar.gz | tar tvzf -" package)))
       ((rpm)
        (run-if-program-available "rpm" "rpm -qlvp ~a" package))
       (else (die! "ERROR: unsupported package file extension: ~a" ext)))))
@@ -305,7 +306,8 @@
   (let ((ext (string->symbol (pathname-extension package))))
     (case ext
       ((deb ipk)
-       (system* "ar p ~a control.tar.gz | tar xzf - ./control -O" package))
+       (system*
+        (sprintf "ar p ~a control.tar.gz | tar xzf - ./control -O" package)))
       ((rpm)
        (run-if-program-available "rpm" "rpm -qip ~a" package))
       (else (die! "ERROR: unsupported package file extension: ~a" ext)))))
@@ -314,7 +316,7 @@
   (let ((ext (string->symbol (pathname-extension package))))
     (case ext
       ((deb ipk)
-       (system* "ar p ~a control.tar.gz | tar tzf -" package))
+       (system* (sprintf "ar p ~a control.tar.gz | tar tzf -" package)))
       (else (die! "ERROR: unsupported package file extension: ~a" ext)))))
 
 (define (package-extract package)
@@ -324,7 +326,8 @@
         (create-directory out-dir 'recursively))
     (case (string->symbol ext)
       ((deb ipk)
-       (system* "ar p ~a data.tar.gz | tar xzf - -C ~a" package out-dir))
+       (system*
+        (sprintf "ar p ~a data.tar.gz | tar xzf - -C ~a" package out-dir)))
       ((rpm)
        (change-directory out-dir)
        (run-if-program-available "rpm2cpio" "rpm2cpio ~a | cpio -id" package))
