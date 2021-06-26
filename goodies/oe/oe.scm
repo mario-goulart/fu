@@ -4,7 +4,6 @@
 (cond-expand
  (chicken-4
   (use data-structures extras files ports posix srfi-1 srfi-13 utils)
-  (use html-parser sxml-transforms)
   (define read-list read-file))
  (chicken-5
   (import (chicken bitwise)
@@ -24,7 +23,7 @@
           (chicken string)
           (chicken time)
           (chicken time posix))
-  (import html-parser srfi-1 srfi-13 sxml-transforms)
+  (import srfi-1 srfi-13)
   ;; C4's `read-all'-like
   (define (read-all #!optional file/port)
     (let* ((file/port (or file/port (current-input-port)))
@@ -589,90 +588,74 @@
 ;;; Documentation stuff
 (define oe-documentation-uri
   (make-parameter
-   "https://git.yoctoproject.org/cgit/cgit.cgi/yocto-docs/plain/documentation/ref-manual/ref-variables.xml"))
+   "https://git.yoctoproject.org/cgit/cgit.cgi/yocto-docs/plain/documentation/ref-manual/variables.rst"))
 
 (define oe-documentation-validity
   (make-parameter (* 24 7 60 60))) ;; 1 week
 
-(define yocto-doc-rules
-  (let ((ignore (lambda args '()))
-        (return-body (lambda (tag . args) args)))
-    `((*COMMENT* . ,ignore)
-      (glossentry . ,(lambda (tag . args)
-                       (sxml->html ;; from html-parser
-                        `(html
-                          (body ,args)))))
-      (glossterm . ,(lambda (tag . args) `(h1 ,args)))
-      (glossdef . ,return-body)
-      (para . ,(lambda (tag . args) `(p ,args)))
-      (itemizedlist . ,(lambda (tag . args) `(p (ul ,args))))
-      (orderedlist . ,(lambda (tag . args) `(p (ol ,args))))
-      (note . ,(lambda (tag . args) `(blockquote "WARNING: " ,args)))
-      (tip . ,(lambda (tag . args) `(blockquote "TIP: " ,args)))
-      (listitem . ,(lambda (tag . args) `(li ,args)))
-      (link . ,return-body)
-      (ulink . ,return-body)
-      (linkend . ,return-body)
-      (replaceable . ,(lambda (tag arg) `(i ,arg)))
-      (literallayout . ,(lambda (tag . args) `(blockquote ,args)))
-      (emphasis . ,(lambda (tag . args) `(b ,args)))
-      (filename . ,(lambda (tag . f) f))
-      (class . ,ignore)
-      (role . ,ignore)
-      (info . ,ignore)
-      (id . ,ignore)
-      (title . ,ignore)
-      (@ . ,ignore)
-      (*text* . ,(lambda (tag . text) text))
-      (*default . ,identity)
-      )))
+(define (parse-documentation rst-doc)
+  (let ((doc '())
+        (prev-was-empty-line? #f)
+        (current-var #f)
+        (current-var-doc '())
+        (in-glossary? #f))
 
-(define (get-glossentries sxml)
-  (let loop ((sxml sxml))
-    (if (null? sxml)
-        '()
-        (let ((form (car sxml)))
-          (if (pair? form)
-              (cond ((memq (car form) '(chapter glossary))
-                     (get-glossentries (cdr form)))
-                    ((eq? (car form) 'glossdiv)
-                     (append (get-glossentries (cdr form))
-                             (get-glossentries (cdr sxml))))
-                    ((eq? (car form) 'glossentry)
-                     (cons form (loop (cdr sxml))))
-                    (else (loop (cdr sxml))))
-              (loop (cdr sxml)))))))
+    (define (unindent-line line)
+      (let ((line (string-trim-right line)))
+        (if (string=? line "")
+            ""
+            (substring line 6))))
 
-(define (get-glossentry-term glossentry)
-  (let loop ((forms (cdr glossentry)))
-    (if (null? forms)
-        'unknown-glossterm
-        (let ((form (car forms)))
-          (if (and (pair? form) (eq? (car form) 'glossterm))
-              (string->symbol (cadr form))
-              (loop (cdr forms)))))))
+    (define (finalize-var-doc!)
+      (set! doc (cons (cons (string->symbol current-var)
+                            (string-intersperse
+                             (reverse current-var-doc)
+                             "\n"))
+                      doc)))
 
-(define (xml->sexp-glossentries xml-port)
-  (let ((sxml (cddr (html->sxml xml-port))))
-    (map (lambda (glossentry)
-           (cons (get-glossentry-term glossentry)
-                 glossentry))
-         (get-glossentries sxml))))
+    (with-input-from-string rst-doc
+      (lambda ()
+        (let loop ()
+          (let ((line (read-line)))
+            (cond
+             ((eof-object? line)
+              (when current-var (finalize-var-doc!)))
+             (in-glossary?
+              (cond
+               ((and (string-prefix? "   :term:" line)
+                     prev-was-empty-line?)
+                (let* ((bt-var
+                        (car (irregex-extract '(: "`" (+ (~ "`")) "`") line)))
+                       (var
+                        (substring bt-var 1 (- (string-length bt-var) 1))))
+                  (when current-var (finalize-var-doc!))
+                  (set! current-var var)
+                  (set! current-var-doc '())
+                  (set! prev-was-empty-line? #f))
+                (loop))
+               (else
+                (when (string=? line "")
+                  (set! prev-was-empty-line? #t))
+                (set! current-var-doc (cons (unindent-line line)
+                                            current-var-doc))
+                (loop))))
+             (else
+              (when (string=? line ".. glossary::")
+                (set! in-glossary? #t))
+              (loop)))))))
+    doc))
 
 (define (maybe-update-documentation!)
   (define (update-documentation!)
     (print "Updating documentation data...")
     (let* ((p (open-input-pipe (sprintf "wget -q -O - ~A 2>&1"
                                         (oe-documentation-uri))))
-           (output (read-all p))
+           (rst-doc (read-all p))
            (exit-status (arithmetic-shift (close-input-pipe p) -8)))
-      (with-output-to-file "test.out" (cut print output))
       (if (zero? exit-status)
-          (let ((glossentries
-                 (call-with-input-string output xml->sexp-glossentries)))
-            (with-output-to-file *documentation-cache-file*
-              (lambda ()
-                (pp glossentries))))
+          (with-output-to-file *documentation-cache-file*
+            (lambda ()
+              (pp (parse-documentation rst-doc))))
           (error 'maybe-update-documentation!
                  "wget error.  Exit code:" exit-status))))
   (if (file-exists? *documentation-cache-file*)
@@ -692,15 +675,11 @@
       doc)))
 
 (define (show-variable-documentation variable)
-  (let ((glossentry (alist-ref variable (get-variables-documentation)))
-        (rules
-         (append
-          yocto-doc-rules
-          universal-conversion-rules*)))
+  (let ((glossentry (alist-ref variable (get-variables-documentation))))
     (if glossentry
-        (with-output-to-pipe (sprintf "lynx -stdin -dump | ~a" (fu-pager))
-          (lambda ()
-            (SRV:send-reply (pre-post-order* glossentry rules))))
+        (begin
+          (print "###\n### " variable "\n###")
+          (print glossentry))
         (die! "Could not find documentation for ~a" variable))))
 
 (define (variable-documentation str-pattern)

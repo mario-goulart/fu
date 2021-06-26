@@ -9,11 +9,9 @@ etc.
 ## Requirements
 
 * [fu](https://github.com/mario-goulart/fu)
-* [sxml-transforms](http://wiki.call-cc.org/egg/4/sxml-transforms) and [html-parser](http://wiki.call-cc.org/egg/4/html-parser) eggs
 
 The following optional external programs are used by `oe`:
 
-* [lynx](http://lynx.invisible-island.net/) (for documentation)
 * [wget](https://www.gnu.org/software/wget/) (for documentation)
 * rpm (for rpm packages)
 * rpm2cpio (for rpm packages)
