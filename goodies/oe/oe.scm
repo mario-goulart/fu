@@ -382,10 +382,14 @@
   (populate-bitbake-data!)
   (with-output-to-file *cached-oe-data-file*
     (lambda ()
-      (for-each (lambda (var)
-                  (pp (cons var
-                            (cdr (alist-ref var *bitbake-data*)))))
-                *cached-oe-variables*)))
+      (for-each
+       (lambda (var)
+         (let ((val (and-let* ((v (alist-ref var *bitbake-data*)))
+                      (cdr v))))
+           (if val
+               (pp (cons var val))
+               (fprintf (current-error-port) "WARNING: ~a undefined\n" var))))
+       *cached-oe-variables*)))
   ;; Maybe bitbake must have to be rerun in a recipe-specific basis,
   ;; so we just empty the in-memory data
   (set! *bitbake-data* #f))
@@ -946,38 +950,39 @@
                 (bh-what-rdepends-rank bh-dir))))
     (else (die! "buildhistory: invalid criteria: ~a" criteria))))
 
-(define (handle-bh args bh-dir)
+(define (handle-bh args builddir)
   (let ((cmd (string->symbol (car args)))
         (bh-args (cdr args)))
     (when (null? bh-args)
       (die! bh-usage))
-    (if (eqv? cmd 'rank)
-        (let* ((parsed-args
-                (parse-command-line bh-args
-                                    `((-n . n))))
-               (criteria (get-opt '-- parsed-args))
-               (n-items-raw (get-opt '-n parsed-args))
-               (n-items (and n-items-raw
-                            (string->number n-items-raw))))
-          (when (and n-items
-                     (not (integer? n-items))
-                     (< n-items 1))
-            (die! "<n> must be an integer greater than 0."))
-          (if (null? (cdr criteria))
-              (bh-rank (string->symbol (car criteria)) n-items bh-dir)
-              (die! bh-usage)))
-        (let* ((recipe/pkg (car bh-args))
-               (recipe/pkg-pattern
-                (prepare-pattern (car bh-args) #f))) ;; FIXME: implement -s
-          (case cmd
-            ((pkgs) (bh-pkgs recipe/pkg-pattern bh-dir))
-            ((latest) (bh-latest recipe/pkg-pattern bh-dir))
-            ((pkg-view pv) (bh-pkg-view recipe/pkg-pattern bh-dir))
-            ((what-depends) (bh-show-what-depends recipe/pkg bh-dir))
-            ((what-rdepends) (bh-show-what-rdepends recipe/pkg bh-dir))
-            ((what-rprovides) (bh-what-rprovides recipe/pkg bh-dir))
-            ((what-contains) (bh-what-contains recipe/pkg bh-dir))
-            (else (die! bh-usage)))))))
+    (let ((bh-dir (get-bh-dir builddir)))
+      (if (eqv? cmd 'rank)
+          (let* ((parsed-args
+                  (parse-command-line bh-args
+                                      `((-n . n))))
+                 (criteria (get-opt '-- parsed-args))
+                 (n-items-raw (get-opt '-n parsed-args))
+                 (n-items (and n-items-raw
+                               (string->number n-items-raw))))
+            (when (and n-items
+                       (not (integer? n-items))
+                       (< n-items 1))
+              (die! "<n> must be an integer greater than 0."))
+            (if (null? (cdr criteria))
+                (bh-rank (string->symbol (car criteria)) n-items bh-dir)
+                (die! bh-usage)))
+          (let* ((recipe/pkg (car bh-args))
+                 (recipe/pkg-pattern
+                  (prepare-pattern (car bh-args) #f))) ;; FIXME: implement -s
+            (case cmd
+              ((pkgs) (bh-pkgs recipe/pkg-pattern bh-dir))
+              ((latest) (bh-latest recipe/pkg-pattern bh-dir))
+              ((pkg-view pv) (bh-pkg-view recipe/pkg-pattern bh-dir))
+              ((what-depends) (bh-show-what-depends recipe/pkg bh-dir))
+              ((what-rdepends) (bh-show-what-rdepends recipe/pkg bh-dir))
+              ((what-rprovides) (bh-what-rprovides recipe/pkg bh-dir))
+              ((what-contains) (bh-what-contains recipe/pkg bh-dir))
+              (else (die! bh-usage))))))))
 
 ;;;
 ;;; Buildstats
@@ -1171,6 +1176,15 @@
                            bs-dir)
                   (die! bs-usage))))
            (else (die! bs-usage))))))))
+
+(define (get-bh-dir builddir)
+  (let ((bh-dir (get-environment-variable "BUILDHISTORY_DIR")))
+    (when (and builddir (not bh-dir))
+      (populate-bitbake-data-from-cache!))
+    (when (and (not builddir) (not bh-dir))
+      (die! "BUILDDIR and/or BUILDHISTORY_DIR must be set."))
+    (or (get-var 'BUILDHISTORY_DIR)
+        (die! "BUILDHISTORY_DIR is unbound.  Is BUILDHISTORY enabled?"))))
 
 (define bh-usage
   "buildhistory <subcommand> <recipe|package>
@@ -1469,14 +1483,9 @@ variable-find <pattern> [<recipe>]
              (variable-documentation (car oe-args))))
 
         ((buildhistory bh)
-         (let ((bh-dir (get-environment-variable "BUILDHISTORY_DIR")))
-           (when (and builddir (not bh-dir))
-             (populate-bitbake-data-from-cache!))
-           (when (null? oe-args)
-             (die! bh-usage))
-           (when (and (not builddir) (not bh-dir))
-             (die! "BUILDDIR and/or BUILDHISTORY_DIR must be set."))
-           (handle-bh oe-args (or bh-dir (get-var 'BUILDHISTORY_DIR)))))
+         (when (null? oe-args)
+           (die! bh-usage))
+         (handle-bh oe-args builddir))
 
         ((buildstats bs)
          (let ((bs-dir (get-environment-variable "BUILDSTATS_DIR")))
