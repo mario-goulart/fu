@@ -254,6 +254,15 @@ the source directory and run `chicken-install`:
 If you want to use fu on a system that doesn't have CHICKEN installed,
 you can build a statically linked binary:
 
+#### With CHICKEN 5
+
+    $ cd fu
+    $ CSC_OPTIONS="-static -L -static" chicken-install -n  # just build, don't install
+    $ ldd fu
+            not a dynamic executable
+
+#### With CHICKEN 4
+
     $ cd fu
     $ FU_STATIC=1 chicken-install -n  # just build, don't install
     $ ldd fu
