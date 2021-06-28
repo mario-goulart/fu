@@ -261,6 +261,18 @@ you can build a statically linked binary:
     $ ldd fu
             not a dynamic executable
 
+If you have extra modules in your configuration file, the CHICKEN
+runtime probably won't be able to load them, as the binary is going to
+be statically linked (and they are unlikely to be available on all
+systems where the statically linked binary can be used anyway).  To
+compile extra modules into the statically linked binary, use
+`-R extra-module1 -R extra-module2 ...` in `CSC_OPTIONS`.
+
+Example:
+
+    $ CSC_OPTIONS="-static -L -static -R srfi-13 -R chicken.process-context" chicken-install -n
+
+
 #### With CHICKEN 4
 
     $ cd fu
