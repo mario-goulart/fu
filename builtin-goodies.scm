@@ -1,4 +1,4 @@
-;;; This is a kack the ease building goodies into fu.  Add here
+;;; This is a hack the ease building goodies into fu.  Add here
 ;;; include forms.
 ;;;
 ;;; Example:
