@@ -1,3 +1,6 @@
 fu
 *~
 *.o
+fu.build.sh
+fu.install.sh
+fu.link
