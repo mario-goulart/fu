@@ -5,6 +5,8 @@
  (license "BSD")
  (category tools)
  (dependencies srfi-1 srfi-13)
+ (component-options
+  (csc-options "-O3" "-d1"))
  (components
   (program fu
            (source-dependencies
