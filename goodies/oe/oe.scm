@@ -685,8 +685,6 @@
 (define (variable-documentation str-pattern)
   (unless (program-available? "wget")
     (die! "This command requires wget, but it doesn't seem to be available."))
-  (unless (program-available? "lynx")
-    (die! "This command requires lynx, but it doesn't seem to be available."))
   (let* ((vars (map (compose symbol->string car) (get-variables-documentation)))
          (pattern (prepare-pattern str-pattern #f))
          (results (filter (lambda (var)
