@@ -77,7 +77,7 @@
 
 (define (grep action args)
   (let loop ((dir (normalize-pathname (current-directory))))
-    (cond ((directory-exists? ".git")
+    (cond ((and (directory-exists? ".git") (not (file-exists? ".gitmodules")))
            (git-grep action args))
           ((or (equal? dir "/") (equal? dir "/."))
            (traditional-grep action args))
