@@ -32,33 +32,47 @@
              (qs pattern))
             read-lines)))
       (change-directory anchor)
-      matches)))
+      (map (lambda (match)
+             (cons dir match))
+           matches))))
 
 (define (grep action args #!key (dirs (list (current-directory))))
   ;; Assuming GNU grep
   (let* ((pattern (last args))
          (grep-options (butlast args))
-         (options (append-map (lambda (dir)
+         (options
+          (remove null?
+                  (append-map (lambda (dir)
                                 (run-grep dir grep-options pattern))
-                              dirs))
+                              dirs)))
          (get-filename
           ;; Ugly hack to remove ANSI escape sequences to colorize
           ;; the filename
           (lambda (choice)
-            ;; Let's hope filenames don't contain ":"
-            (let ((filename (car (string-split (list-ref options choice) ":"))))
+            (let* ((selection (list-ref options choice))
+                   ;; Let's hope filenames don't contain ":"
+                   (filename (car (string-split (cdr selection) ":"))))
               ;; Remove ansi escape sequences that grep uses to
               ;; colorize filenames
               ;; "\x1b[35m\x1b[K<the-filename>\x1b[m\x1b[K\x1b[36m\x1b[K"
-              (string-drop-right (substring filename 8) 14)))))
+              (make-pathname (car selection)
+                             (string-drop-right (substring filename 8) 14))))))
     (cond ((null? options)
            (exit 1))
           ((null? (cdr options))
            (action (get-filename 0)))
           (else
-           (if (terminal-port? (current-output-port))
-               (action (get-filename (prompt options identity)))
-               (for-each print options))))))
+           (let ((matches
+                  ;; In case of multiple dirs, prepend dirs to
+                  ;; filenames
+                  (if (null? (cdr dirs))
+                      (map cdr options)
+                      (map (lambda (opt)
+                             (make-pathname (car opt) (cdr opt)))
+                           options))))
+             (if (terminal-port? (current-output-port))
+                 (action (get-filename (prompt matches identity)))
+                 (for-each print matches)))))))
 
 (define-command 'g
   "g <grep options> <pattern>
