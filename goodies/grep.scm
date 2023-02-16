@@ -14,48 +14,33 @@
  (else
   (error "Unsupported CHICKEN version.")))
 
-(define (git-grep action args)
-  (let* ((pattern (last args))
-         (opts (butlast args))
-         (options (call-with-input-pipe
-                   (sprintf
-                    "git --no-pager grep ~a ~a ~a"
-                    (if output-is-terminal? "--color=always" "--color=never")
-                    (string-intersperse opts)
-                    (qs pattern))
-                   read-lines))
-         (get-filename
-          (lambda (choice)
-            ;; Let's hope filenames don't contain ":"
-            (string-drop-right ;; remove \x1b[36m
-             (car (string-split (list-ref options choice) ":"))
-             5))))
-    (cond ((null? options)
-           (exit 1))
-          ((null? (cdr options))
-           (action (get-filename 0)))
-          (else
-           (if (terminal-port? (current-output-port))
-               (action (get-filename (prompt options identity)))
-               (for-each print options))))))
+(define (run-grep dir grep-options pattern)
+  (let ((anchor (current-directory))
+        (ignored-opts '("-q" "-quiet" "--silent" "-h" "--no-filename")))
+    (change-directory dir)
+    (let ((matches
+           (call-with-input-pipe
+            ;; Make filename colorization explicit here so it can be
+            ;; removed later
+            (sprintf
+             "GREP_COLORS='fn=35' grep -r --exclude .git --with-filename ~a ~a ~a *"
+             (if output-is-terminal? "--color=always" "--color=never")
+             (string-intersperse
+              (remove (lambda (opt)
+                        (member opt ignored-opts))
+                      grep-options))
+             (qs pattern))
+            read-lines)))
+      (change-directory anchor)
+      matches)))
 
-(define (traditional-grep action args)
+(define (grep action args #!key (dirs (list (current-directory))))
   ;; Assuming GNU grep
   (let* ((pattern (last args))
-         (grep-opts (butlast args))
-         (ignored-opts '("-q" "-quiet" "--silent" "-h" "--no-filename"))
-         (options (call-with-input-pipe
-                   ;; Make filename colorization explicit here so it
-                   ;; can be removed later
-                   (sprintf
-                    "GREP_COLORS='fn=35' grep -r --with-filename ~a ~a ~a *"
-                    (if output-is-terminal? "--color=always" "--color=never")
-                    (string-intersperse
-                     (remove (lambda (opt)
-                               (member opt ignored-opts))
-                             grep-opts))
-                    (qs pattern))
-                   read-lines))
+         (grep-options (butlast args))
+         (options (append-map (lambda (dir)
+                                (run-grep dir grep-options pattern))
+                              dirs))
          (get-filename
           ;; Ugly hack to remove ANSI escape sequences to colorize
           ;; the filename
@@ -74,15 +59,6 @@
            (if (terminal-port? (current-output-port))
                (action (get-filename (prompt options identity)))
                (for-each print options))))))
-
-(define (grep action args)
-  (let loop ((dir (normalize-pathname (current-directory))))
-    (cond ((and (directory-exists? ".git") (not (file-exists? ".gitmodules")))
-           (git-grep action args))
-          ((or (equal? dir "/") (equal? dir "/."))
-           (traditional-grep action args))
-          (else
-           (loop (normalize-pathname (make-pathname dir "..")))))))
 
 (define-command 'g
   "g <grep options> <pattern>
