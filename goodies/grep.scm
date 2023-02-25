@@ -5,6 +5,7 @@
   (import (chicken file)
           (chicken format)
           (chicken io)
+          (chicken irregex)
           (chicken pathname)
           (chicken port)
           (chicken process)
@@ -14,16 +15,29 @@
  (else
   (error "Unsupported CHICKEN version.")))
 
-(define (run-grep dir grep-options pattern)
-  (let ((anchor (current-directory))
-        (ignored-opts '("-q" "-quiet" "--silent" "-h" "--no-filename")))
+
+(define (remove-ansi-escapes text)
+  (irregex-replace/all "\\x1b\\[[0-9;]*[mK]" text ""))
+
+(define program-available?
+  (let ((paths (string-split (get-environment-variable "PATH") ":")))
+    (lambda (program)
+      (let loop ((paths paths))
+        (if (null? paths)
+            #f
+            (let ((path (car paths)))
+              (or (file-exists? (make-pathname path program))
+                  (loop (cdr paths)))))))))
+
+(define (grep-wrapper cmd-pattern dir grep-options ignored-options pattern)
+  (let ((anchor (current-directory)))
     (change-directory dir)
     (let ((matches
            (call-with-input-pipe
             ;; Make filename colorization explicit here so it can be
             ;; removed later
             (sprintf
-             "GREP_COLORS='fn=35' grep -r --exclude .git --with-filename ~a ~a ~a *"
+             cmd-pattern
              (if output-is-terminal? "--color=always" "--color=never")
              (string-intersperse
               (remove (lambda (opt)
@@ -36,6 +50,27 @@
              (cons dir match))
            matches))))
 
+(define (run-ripgrep dir grep-options pattern)
+  (grep-wrapper
+   "rg --no-heading -N ~a ~a ~a *"
+   dir
+   grep-options
+   '("-q" "--quiet" "--heading" "-h" "--no-filename")
+   pattern))
+
+(define (run-grep dir grep-options pattern)
+  (grep-wrapper
+   "grep -r --exclude .git --with-filename ~a ~a ~a *"
+   dir
+   grep-options
+   '("-q" "-quiet" "--silent" "-h" "--no-filename")
+   pattern))
+
+(define grepper
+  (if (program-available? "rg")
+      run-ripgrep
+      run-grep))
+
 (define (grep action args #!key (dirs (list (current-directory))))
   ;; Assuming GNU grep
   (let* ((pattern (last args))
@@ -43,7 +78,7 @@
          (options
           (remove null?
                   (append-map (lambda (dir)
-                                (run-grep dir grep-options pattern))
+                                (grepper dir grep-options pattern))
                               dirs)))
          (get-filename
           ;; Ugly hack to remove ANSI escape sequences to colorize
@@ -52,11 +87,7 @@
             (let* ((selection (list-ref options choice))
                    ;; Let's hope filenames don't contain ":"
                    (filename (car (string-split (cdr selection) ":"))))
-              ;; Remove ansi escape sequences that grep uses to
-              ;; colorize filenames
-              ;; "\x1b[35m\x1b[K<the-filename>\x1b[m\x1b[K\x1b[36m\x1b[K"
-              (make-pathname (car selection)
-                             (string-drop-right (substring filename 8) 14))))))
+              (make-pathname (car selection) (remove-ansi-escapes filename))))))
     (cond ((null? options)
            (exit 1))
           ((null? (cdr options))
