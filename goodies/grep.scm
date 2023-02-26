@@ -41,7 +41,7 @@
              (if output-is-terminal? "--color=always" "--color=never")
              (string-intersperse
               (remove (lambda (opt)
-                        (member opt ignored-opts))
+                        (member opt ignored-options))
                       grep-options))
              (qs pattern))
             read-lines)))
