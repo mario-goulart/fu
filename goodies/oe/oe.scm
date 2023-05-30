@@ -1475,7 +1475,8 @@ variable-find <pattern> [<recipe>]
            (when (and (not builddir) (not bs-dir))
              (die! "BUILDDIR and/or BUILDSTATS_DIR must be set."))
            (let ((bs-base (and builddir
-                               (get-var 'BUILDSTATS_BASE))))
+                               (or bs-dir
+                                   (get-var 'BUILDSTATS_BASE)))))
              (handle-bs oe-args (or bs-dir bs-base) (not bs-dir)))))
 
         (else (die! "Unknown command: ~a" cmd))))))
