@@ -966,11 +966,13 @@
 ;;;
 (define (bs-parse-duration file)
   (let loop ((lines (with-input-from-file file read-lines)))
-    (unless (null? lines)
-      (let ((line (car lines)))
-        (if (string-suffix? "seconds " line)
-            (string->number (last (butlast (string-split line))))
-            (loop (cdr lines)))))))
+    (if (null? lines)
+        0
+        (let ((line (car lines)))
+          (if (and (string-prefix? "Elapsed time:" line)
+                   (string-suffix? "seconds" line))
+              (string->number (caddr (string-split line)))
+              (loop (cdr lines)))))))
 
 (define (task-start/end task-file)
   (let ((start #f)
