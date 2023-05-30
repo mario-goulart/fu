@@ -22,10 +22,12 @@ EOF
 
 if [ "$chicken_version" = 5 ]; then
     csc -A -m fu fu.scm
+    LIBDIR=$(csi -p '(begin (import (chicken platform)) (car (repository-path)))')
+    csc -L -static -static -o fu "$LIBDIR/srfi-1.o" "$LIBDIR/srfi-13.o" fu.scm -o fu
 else
     csc -ASM -c fu.scm
+    csc -c fu.scm -o fu.o
+    csc -static *o -o fu
 fi
 
-csc -c fu.scm -o fu.o
-csc -static *o -o fu
 strip fu
