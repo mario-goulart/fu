@@ -65,7 +65,7 @@ $ ./goodies/oe/oe-static-build.sh
 ```
 
 A statically linked `fu` binary is going to be created in the current
-directory.  You can copy this binary around run it on compatible
+directory.  You can copy this binary around and run it on compatible
 platforms.  To get the actual `oe` command, source the shell wrapper:
 
 ```
