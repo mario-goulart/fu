@@ -1,6 +1,4 @@
 (cond-expand
- (chicken-4
-  (define file-readable? file-read-access?))
  (chicken-5
   (void))
  (else (error "Unsupported CHICKEN version.")))

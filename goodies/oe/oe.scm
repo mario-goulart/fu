@@ -2,9 +2,6 @@
 
 (import scheme)
 (cond-expand
- (chicken-4
-  (use data-structures extras files ports posix srfi-1 srfi-13 utils)
-  (define read-list read-file))
  (chicken-5
   (import (chicken bitwise)
           (chicken condition)

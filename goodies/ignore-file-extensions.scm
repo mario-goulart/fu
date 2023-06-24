@@ -1,6 +1,4 @@
 (cond-expand
- (chicken-4
-  (void))
  (chicken-5
   (import (chicken pathname)))
  (else

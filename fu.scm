@@ -1,10 +1,5 @@
 (import scheme)
 (cond-expand
- (chicken-4
-  (import chicken)
-  (use data-structures extras irregex files ports posix srfi-1 srfi-13 utils)
-  (use (except posix find-files))
-  (define set-environment-variable! setenv))
  (chicken-5
   (import (chicken condition)
           (chicken io)

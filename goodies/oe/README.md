@@ -48,13 +48,9 @@ $ . path/to/oe.sh
 
 `oe` can be bundled with `fu` in a statically linked binary.
 
-If you are using CHICKEN 5, you'll need the
-[srfi-1](http://wiki.call-cc.org/egg/5/srfi-1) and
+You'll need the [srfi-1](http://wiki.call-cc.org/egg/5/srfi-1) and
 [srfi-13](http://wiki.call-cc.org/egg/5/srfi-13) eggs installed (you
 can install them with `chicken-install srfi-1 srfi-13`).
-
-If you are using CHICKEN 4, srfi-1 and srfi-13 are built-in modules,
-so you don't have to install anything.
 
 To actually build a statically linked version of `fu` that bundles
 `oe`, you can use the `oe-static-build.sh` script:

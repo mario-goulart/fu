@@ -273,13 +273,6 @@ Example:
     $ CSC_OPTIONS="-static -L -static -R srfi-13 -R chicken.process-context" chicken-install -n
 
 
-#### With CHICKEN 4
-
-    $ cd fu
-    $ FU_STATIC=1 chicken-install -n  # just build, don't install
-    $ ldd fu
-            not a dynamic executable
-
 ### Credits
 
 fu uses the [command-line](https://bitbucket.org/evhan/command-line)
