@@ -4,7 +4,7 @@
  (author "Mario Domenech Goulart")
  (license "BSD")
  (category tools)
- (dependencies srfi-1 srfi-13)
+ (dependencies commands srfi-1 srfi-13)
  (component-options
   (csc-options "-O3" "-d1"))
  (components

@@ -110,7 +110,7 @@
   Equivalent to 'grep <grep options> <pattern>'.  If in a git repository,
   will run 'git grep <git grep options> <pattern>. Upon finding results,
   this command will prompt for the action."
-  (lambda args
+  (lambda (args)
     (grep (fu-actions) args)))
 
 (define-command 'gv
@@ -118,7 +118,7 @@
   Equivalent to 'grep <grep options> <pattern>'.  If in a git repository,
   will run 'git grep <git grep options> <pattern>. The action to be applied
   to the selection is 'view'."
-  (lambda args
+  (lambda (args)
     (grep (fu-viewer) args)))
 
 (define-command 'ge
@@ -126,5 +126,5 @@
   Equivalent to 'grep <grep options> <pattern>'.  If in a git repository,
   will run 'git grep <git grep options> <pattern>. The action to be applied
   to the selection is 'edit'."
-  (lambda args
+  (lambda (args)
     (grep (fu-editor) args)))

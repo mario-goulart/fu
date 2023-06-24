@@ -21,7 +21,7 @@
           (chicken process-context)
           (chicken sort)
           (chicken string))
-  (import srfi-1))
+  (import commands srfi-1))
  (else (error "Unsupported CHICKEN version.")))
 
 ;; for command-line
@@ -33,17 +33,7 @@
 
 (define output-is-terminal? (terminal-port? (current-output-port)))
 
-(define-record handler cmd help proc)
-
-(define (define-command cmd help proc)
-  (handlers
-   (cons (cons cmd (make-handler cmd help proc))
-         (handlers))))
-
 ;;; Parameters
-
-(define handlers
-  (make-parameter '()))
 
 (define match-highlighter
   (make-parameter
@@ -134,7 +124,7 @@
                  rv))))))
 
 (define (remove-command! cmd)
-  (handlers (alist-delete! cmd (handlers))))
+  (undefine-command cmd))
 
 (define (die! fmt . args)
   (apply fprintf (append (list (current-error-port)
@@ -303,7 +293,7 @@
                                   (dir ".")
                                   (interactive-action? #t)
                                   multiple-choices?)
-  (lambda args
+  (lambda (args)
     (let* ((parsed-args
             (parse-command-line args
                                 `((-s)
@@ -440,23 +430,8 @@ EOF
 (include "builtin-goodies.scm")
 
 ;;;
-;;; Usage & command line parsing
+;;; Command line parsing
 ;;;
-
-(define (usage #!optional exit-code)
-  (let ((port (if (and exit-code (not (zero? exit-code)))
-                  (current-error-port)
-                  (current-output-port)))
-        (this (pathname-strip-directory (program-name))))
-    (fprintf port "Usage: ~a <command> <options>\n\n" this)
-    (for-each (lambda (handler)
-                (display (handler-help (cdr handler)) port)
-                (newline)
-                (newline))
-              (reverse (handlers))))
-  (when exit-code
-    (exit exit-code)))
-
 
 (let ((args (command-line-arguments)))
 
@@ -471,12 +446,10 @@ EOF
   (define-built-in-commands)
 
   (when (null? args)
-    (usage 1))
+    (show-main-help exit-code: 1))
 
-  (when (or (member "-h" args)
-            (member "-help" args)
-            (member "--help" args))
-    (usage 0))
+  (when (member (car args) (help-options))
+    (show-main-help exit-code: 0))
 
   (when (or (member "-v" args)
             (member "-version" args)
@@ -486,7 +459,7 @@ EOF
 
   (let* ((cmd (string->symbol (car args)))
          (cmd-args (cdr args))
-         (handler (alist-ref cmd (handlers))))
+         (handler (alist-ref cmd (commands))))
     (if handler
-        (apply (handler-proc handler) cmd-args)
+        ((command-proc handler) cmd-args)
         (die! "~a: invalid command." cmd))))
