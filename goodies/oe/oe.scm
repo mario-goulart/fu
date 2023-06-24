@@ -1330,7 +1330,7 @@ variable-find <pattern> [<recipe>]
 (define-command 'oe
   "oe <options>
    Run 'oe help' for the full help message."
-  (lambda args
+  (lambda (args)
     (when (null? args)
       (die! oe-usage))
 
