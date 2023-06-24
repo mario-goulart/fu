@@ -446,10 +446,10 @@ EOF
   (define-built-in-commands)
 
   (when (null? args)
-    (show-main-help 1))
+    (show-main-help exit-code: 1))
 
   (when (member (car args) (help-options))
-    (show-main-help 0))
+    (show-main-help exit-code: 0))
 
   (when (or (member "-v" args)
             (member "-version" args)
