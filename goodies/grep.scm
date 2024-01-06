@@ -64,10 +64,43 @@
    '("-q" "-quiet" "--silent" "-h" "--no-filename")
    pattern))
 
+(define (run-git-grep dir grep-options pattern)
+  (grep-wrapper
+   "git --no-pager grep ~a ~a ~a"
+   dir
+   grep-options
+   '("-q" "-quiet" "--silent" "-h" "--no-filename")
+   pattern))
+
+(define (in-git-repo?)
+  (let* ((read-all (lambda (port) (read-string #f port)))
+         (repo-root-path
+          (call-with-input-pipe
+           "git rev-parse --show-toplevel 2>/dev/null"
+           read-all))
+         (super-repo-root-path
+          (call-with-input-pipe
+           "git rev-parse --show-superproject-working-tree 2>/dev/null"
+           read-all)))
+    (if (eof-object? repo-root-path)
+        #f
+        (if (and (eof-object? super-repo-root-path)
+                 (file-exists? ".gitmodules"))
+            ;; "git rev-parse --show-superproject-working-tree" will
+            ;; return eof if in the super project directory.  Don't
+            ;; run "git grep" if in there, so that we can grep all
+            ;; submodules
+            #f
+            (string-chomp repo-root-path)))))
+
 (define grepper
-  (if (program-available? "rg")
-      run-ripgrep
-      run-grep))
+  (let ((rg-available? (program-available? "rg")))
+    (lambda ()
+      (if (in-git-repo?)
+          run-git-grep
+          (if rg-available?
+              run-ripgrep
+              run-grep)))))
 
 (define (grep action args #!key (dirs (list (current-directory))))
   ;; Assuming GNU grep
@@ -76,7 +109,7 @@
          (options
           (remove null?
                   (append-map (lambda (dir)
-                                (grepper dir grep-options pattern))
+                                ((grepper) dir grep-options pattern))
                               dirs)))
          (get-filename
           ;; Ugly hack to remove ANSI escape sequences to colorize

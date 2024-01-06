@@ -1,1 +1,1 @@
-(define fu-version "1.0.0")
+(define fu-version "1.1.0")
