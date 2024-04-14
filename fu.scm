@@ -164,6 +164,7 @@
            (loop (fx+ i 1) (cdr options))))
        (flush-output)))
     (display "Option (ENTER to abort): ")
+    (flush-output)
     (read-line))
 
   (let ((len-options (length options)))
