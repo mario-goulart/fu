@@ -150,7 +150,9 @@
       (format-match option compiled-pattern pre-formatter: pre-formatter))))
 
 
-(define (prompt options option-formatter #!key multiple-choices?)
+(define (prompt options option-formatter
+                #!key multiple-choices?
+                      (prompt-text "Option (ENTER to abort): "))
 
   (define (inner-prompt)
     (with-output-to-pager
@@ -163,7 +165,7 @@
                    (option-formatter (car options)) i)
            (loop (fx+ i 1) (cdr options))))
        (flush-output)))
-    (display "Option (ENTER to abort): ")
+    (display prompt-text)
     (flush-output)
     (read-line))
 
