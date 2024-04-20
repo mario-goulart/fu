@@ -152,17 +152,19 @@
 
 (define (prompt options option-formatter
                 #!key multiple-choices?
-                      (prompt-text "Option (ENTER to abort): "))
-
+                      (prompt-text "Option (ENTER to abort): ")
+                      (menu-formatter (lambda (idx options)
+                                        (printf "[~a] ~a [~a]\n"
+                                                idx
+                                                (option-formatter (car options))
+                                                idx))))
   (define (inner-prompt)
     (with-output-to-pager
      (lambda ()
        (let loop ((i 0)
                   (options options))
          (unless (null? options)
-           (printf "[~a] ~a [~a]\n"
-                   i
-                   (option-formatter (car options)) i)
+           (menu-formatter i options)
            (loop (fx+ i 1) (cdr options))))
        (flush-output)))
     (display prompt-text)
