@@ -102,7 +102,9 @@
               run-ripgrep
               run-grep)))))
 
-(define (grep action args #!key (dirs (list (current-directory))))
+(define (grep action args
+              #!key (dirs (list (current-directory)))
+                    (matches-formatter identity))
   ;; Assuming GNU grep
   (let* ((pattern (last args))
          (grep-options (butlast args))
@@ -127,11 +129,12 @@
            (let ((matches
                   ;; In case of multiple dirs, prepend dirs to
                   ;; filenames
-                  (if (null? (cdr dirs))
-                      (map cdr options)
-                      (map (lambda (opt)
-                             (make-pathname (car opt) (cdr opt)))
-                           options))))
+                  (map matches-formatter
+                       (if (null? (cdr dirs))
+                           (map cdr options)
+                           (map (lambda (opt)
+                                  (make-pathname (car opt) (cdr opt)))
+                                options)))))
              (if (terminal-port? (current-output-port))
                  (action (get-filename (prompt matches identity)))
                  (for-each print matches)))))))

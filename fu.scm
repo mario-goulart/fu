@@ -292,7 +292,8 @@
                                   (non-dirs-only? #t)
                                   (dir ".")
                                   (interactive-action? #t)
-                                  multiple-choices?)
+                                  multiple-choices?
+                                  (matches-formatter identity))
   (lambda (args)
     (let* ((parsed-args
             (parse-command-line args
@@ -332,7 +333,8 @@
                    dirs)))
       (if (and prompt? output-is-terminal?)
           (maybe-prompt-files files pattern op
-                              multiple-choices?: multiple-choices?)
+                              multiple-choices?: multiple-choices?
+                              pre-formatter: matches-formatter)
           (let ((op (if (or output-is-terminal? (not interactive-action?)) op print)))
             (for-each (lambda (file)
                         ;; If not interactive-action?, give the
