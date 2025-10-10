@@ -1159,7 +1159,8 @@
       (populate-bitbake-data-from-cache!))
     (when (and (not builddir) (not bh-dir))
       (die! "BUILDDIR and/or BUILDHISTORY_DIR must be set."))
-    (or (get-var 'BUILDHISTORY_DIR)
+    (or bh-dir
+        (get-var 'BUILDHISTORY_DIR)
         (die! "BUILDHISTORY_DIR is unbound.  Is BUILDHISTORY enabled?"))))
 
 (define bh-usage
