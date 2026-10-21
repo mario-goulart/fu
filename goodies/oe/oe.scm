@@ -172,7 +172,9 @@
           (delete-file* raw-data-file)
           (fprintf (current-error-port) "Error running bitbake.\n")
           (exit 1))
-        (system* (sprintf "bitbake -e ~a > ~a" (or recipe "") raw-data-file)))
+        (system* (sprintf "bitbake -e ~a > ~a"
+                          (or recipe "virtual/kernel")
+                          raw-data-file)))
       (change-directory anchor)
       (let ((data (parse-bitbake-output raw-data-file)))
         (delete-file raw-data-file)
